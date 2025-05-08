@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     'workflows',
     'tasks',
     'volunteers',
-    'communication',
+    'communication',  # Module de communication réactivé
 ]
 
 MIDDLEWARE = [
@@ -147,9 +147,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
     ),
     'DEFAULT_PARSER_CLASSES': (
         'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
     ),
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
@@ -168,3 +171,9 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # --- MANAGER HOST ---
 MANAGER_HOST = 'http://192.168.1.1'  # Change this to your actual host
+
+# --- REDIS CONFIG ---
+REDIS_HOST = 'localhost'
+REDIS_PORT = 6379
+REDIS_DB = 0
+REDIS_CHANNELS = ['LOGIN_RESPONSE', 'MANAGER_REGISTRATION_RESPONSE', 'WORKFLOW_SUBMISSION_RESPONSE', 'WORKFLOW_VOLUNTEER_ASSIGNMENT', 'TASK_PROGRESS']
