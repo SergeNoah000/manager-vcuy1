@@ -177,11 +177,11 @@ def handle_message(message):
 
     # Handle responses in a separate thread
 
-    if channel == "LOGIN_RESPONSE":
+    if channel == "auth/login_response":
         thread = threading.Thread(target=handle_login_response, args=(message["data"],))
         thread.start()
         return thread
-    elif channel == "MANAGER_REGISTRATION_RESPONSE":
+    elif channel == "auth/registration_response":
         thread = threading.Thread(target=handle_registration_response, args=(message["data"],))
         thread.start()
         return thread
@@ -240,7 +240,7 @@ class CommunicationConfig(AppConfig):
     def ready(self):
         # Éviter d'exécuter cette méthode lors des appels à manage.py
         import sys
-        if 'runserver' not in sys.argv:
+        if not 'runserver'  in sys.argv:
             return
 
         # Créer le dossier .manager_app s'il n'existe pas
@@ -292,15 +292,21 @@ class CommunicationConfig(AppConfig):
             registration_request_id_path = os.path.join(settings.BASE_DIR, ".manager_app", "registration_request_id.json")
             with open(registration_request_id_path, "w") as f:
                 json.dump({"request_id": request_id}, f)
-            
+            # hostname et user_id
             message = {
                 "request_id": request_id,
-                "manager_name": "Manager Backend",
-                "user_id": "admin"
+                "username": os.getenv("USER", "unknown_user"),
+                "email": os.getenv("USER_EMAIL", "admin@example.com"),  # Récupérer l'email de l'utilisateur connecté
+                "password": str(os.getuid()),  # Utiliser l'user_id comme mot de passe
+                "client_ip": os.getenv("ETHERNET_IP", "127.0.0.1"),  # Récupérer l'IP de la carte Ethernet
+                "client_info": {
+                    "manager_name": os.name,
+                    "user_id": os.getuid()
+                }
             }
             
             redis_manager = get_redis_manager()
-            redis_manager.publish("MANAGER_REGISTRATION", json.dumps(message))
+            redis_manager.publish("auth/register", json.dumps(message))
             print(f"[INFO] Message d'enregistrement envoyé avec request_id: {request_id}")
         except Exception as e:
             print(f"[ERROR] Impossible d'envoyer le message d'enregistrement : {e}")
@@ -332,7 +338,7 @@ class CommunicationConfig(AppConfig):
             
             # Envoyer le message
             redis_manager = get_redis_manager()
-            redis_manager.publish("LOGIN", json.dumps(message))
+            redis_manager.publish("auth/login", json.dumps(message))
             print(f"[INFO] Message de connexion envoyé avec request_id: {request_id}")
         except Exception as e:
             print(f"[ERROR] Impossible d'envoyer le message de connexion : {e}")
