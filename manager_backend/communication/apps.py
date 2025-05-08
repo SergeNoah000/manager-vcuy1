@@ -3,11 +3,7 @@ import os
 import json
 from django.conf import settings
 import uuid
-from django.apps import AppConfig
 import threading
-from tasks.scheduller import assign_workflow_to_volunteers
-from workflows.split_workflow import split_workflow
-from workflows.models import Workflow
 from communication.PubSub.get_redis_instance import get_redis_manager  
 
 
@@ -16,7 +12,7 @@ def handle_login_response(data):
     """
     Gère la réponse de connexion du serveur Redis.
     """
-    if not isinstance(dict, data) or not "request_id" in data : 
+    if not isinstance(data, dict) or "request_id" not in data: 
         print("message recu pas correctement formate")
         return 
     
@@ -65,7 +61,7 @@ def handle_registration_response(data):
     """
     Gère la réponse d'enregistrement du serveur Redis.
     """
-    if not isinstance(dict, data) or not "request_id" in data : 
+    if not isinstance(data, dict) or "request_id" not in data: 
         print("message recu pas correctement formate")
         return 
     
@@ -113,7 +109,7 @@ def handle_workflow_submission_response(data):
     """
     Gère la réponse de soumission de workflow du serveur Redis.
     """
-    if not isinstance(dict, data) or not "request_id" in data : 
+    if not isinstance(data, dict) or "request_id" not in data: 
         print("message recu pas correctement formate")
         return 
     
@@ -155,29 +151,24 @@ def handle_workflow_submission_response(data):
         print(f"[INFO] Informations du manager enregistrées dans {manager_info_path}")
         
         # Enregistrer l'id du workflow dans la base de données
+        from workflows.models import Workflow
         workflow_id = data.get("info").get("workflow_id")
         workflow = Workflow.objects.get(workflow_id=workflow_local_id)
         workflow.coordinator_workflow_id = workflow_id
-        workflow.status = Workflow.WorkflowStatus.SPLITTING
+        workflow.status = "SPLITTING"  # Utiliser la constante directement pour éviter l'importation circulaire
         workflow.save()
 
         # Envoyer l'information au frontend
         
 
         # Engager l'operation de division du workflow
-
+        from workflows.split_workflow import split_workflow
         return split_workflow(workflow_local_id)
     else:
         print(f"[ERROR] Échec de la soumission de workflow avec request_id: {request_id}, message: {message}")
 
-        
-
-
-
-
-    
 def handle_message(message):
-    if not isinstance(dict, message) or not "channel" in message : 
+    if not isinstance(message, dict) or "channel" not in message: 
         print("message recu pas correctement formate")
         return 
     
@@ -199,144 +190,149 @@ def handle_message(message):
         thread.start()
         return thread
     elif channel == "WORKFLOW_VOLUNTEER_ASSIGNMENT":
-        # Traiter l'affectation de workflow aux volontaires
-        print(f"[INFO] Affectation de workflow aux volontaires: {message['data']}")
-        # recuperer les donnees du message (workflow_id, volunteers)
+        # Récupérer les informations du workflow et des volontaires
+        if not isinstance(message["data"], dict):
+            print(f"[ERROR] Les données du message ne sont pas au format attendu.")
+            return
         wockflow_id = message['data'].get("workflow_id")
         volunteers = message['data'].get("volunteers")
         # Verifier si le workflow existe
+        from workflows.models import Workflow
         try:
             workflow = Workflow.objects.get(workflow_id=wockflow_id)
         except Workflow.DoesNotExist:
             print(f"[ERROR] Le workflow avec l'id {wockflow_id} n'existe pas.")
             return
-        # Verifier si les volontaires existent
         if not volunteers:
             print(f"[ERROR] Aucun volontaire n'a été envoyé pour le workflow avec l'id {wockflow_id}.")
             return
         # Appeler la fonction d'affectation de workflow aux volontaires
+        from tasks.scheduller import assign_workflow_to_volunteers
         assign_workflow_to_volunteers(workflow, volunteers)
         return thread
     elif channel == "TASK_PROGRESS":
-         # Appeler la fonction de mise à jour du progrès de la tâche
-        print(f"[INFO] Mise à jour du progrès de la tâche: {message['data']}")
-
-        # Verifier que nous sommes le manager du workflow de la tache
-
-    else :
-        print("canal non reconu")
-
-    return 
-
+        # Récupérer les informations de progression de la tâche
+        if not isinstance(message["data"], dict):
+            print(f"[ERROR] Les données du message ne sont pas au format attendu.")
+            return
+        task_id = message['data'].get("task_id")
+        progress = message['data'].get("progress")
+        status = message['data'].get("status")
+        # Mettre à jour la tâche dans la base de données
+        from tasks.models import Task
+        try:
+            task = Task.objects.get(id=task_id)
+        except Task.DoesNotExist:
+            print(f"[ERROR] La tâche avec l'id {task_id} n'existe pas.")
+            return
+        task.progress = progress
+        task.status = status
+        task.save()
+        return thread
+    else:
+        print(f"[WARNING] Canal non reconnu : {channel}")
+        return None
 
 class CommunicationConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'communication'
 
     def ready(self):
-        # Initialisation de Redis
-        redis_manager = get_redis_manager()
-        redis_manager.subscribe(handle_message)
-        pubsub = redis_manager.pubsub()
-        pubsub.run_in_thread(sleep_time=0.001)
-        
-        # creer une autre fonction qui verifi si le fichie manager_info.json du dossier .manager_app du personnel
-        # existe et si il est bien formate
-        # si oui, on enregistre envoir un message de d'enregistrement dans MANAGER_REGISTRATION avec un request_id
-        # et le nom d'hote et son userid 
-        # sinon on envoie un message d'erreur
+        # Éviter d'exécuter cette méthode lors des appels à manage.py
+        import sys
+        if 'runserver' not in sys.argv:
+            return
+
+        # Créer le dossier .manager_app s'il n'existe pas
+        manager_app_path = os.path.join(settings.BASE_DIR, ".manager_app")
+        if not os.path.exists(manager_app_path):
+            os.makedirs(manager_app_path)
+            print(f"[INFO] Dossier {manager_app_path} créé.")
+
+        # Vérifier si les informations du manager existent
         self.check_manager_info()
 
-    def check_manager_info(self):
-        # Chemin vers le fichier manager_info.json
-        manager_info_path = os.path.join(settings.BASE_DIR, ".manager_app", "manager_info.json")
-
-        # Vérifier si le fichier existe
-        if not os.path.exists(manager_info_path):
-            print("[ERROR] Le fichier manager_info.json n'existe pas.")
-            
-            # appeler la fonction d'envoie du message d'enregistrement
-            self.send_registration_message()
-            return
-
-        # Vérifier si le fichier est bien formaté en JSON
+        # Initialiser le gestionnaire Redis
         try:
+            redis_manager = get_redis_manager()
+            redis_manager.connect()
+            redis_manager.subscribe(handle_message)
+            print("[INFO] Connexion Redis établie et souscription aux canaux effectuée.")
+        except Exception as e:
+            print(f"[ERROR] Impossible d'initialiser le gestionnaire Redis : {e}")
+
+    def check_manager_info(self):
+        """
+        Vérifie si les informations du manager existent dans le fichier .manager_app/manager_info.json.
+        Si elles n'existent pas, envoie un message d'enregistrement au serveur Redis.
+        """
+        manager_info_path = os.path.join(settings.BASE_DIR, ".manager_app", "manager_info.json")
+        if not os.path.exists(manager_info_path):
+            print("[WARNING] Le fichier manager_info.json n'existe pas. Création du fichier.")
+            with open(manager_info_path, "w") as f:
+                json.dump({}, f)
+            self.send_registration_message()
+        else:
             with open(manager_info_path, "r") as f:
                 manager_info = json.load(f)
-        except json.JSONDecodeError:
-            print("[ERROR] Le fichier manager_info.json n'est pas bien formaté.")
-            return
-
-        # Envoyer un message de connexion
-        self.send_login_message()
-
+            if not manager_info.get("manager_id"):
+                print("[WARNING] L'ID du manager n'existe pas. Envoi d'un message d'enregistrement.")
+                self.send_registration_message()
+            else:
+                print(f"[INFO] ID du manager : {manager_info.get('manager_id')}")
+                self.send_login_message()
 
     def send_registration_message(self):
-        # Récupérer les informations nécessaires
-        request_id = str(uuid.uuid4())
-        host_name = os.uname()[1]
-        user_id = os.getuid()
-        
-        # Créer le message
-        message = {
-            "channel": "MANAGER_REGISTRATION",
-            "data": {
+        """
+        Envoie un message d'enregistrement au serveur Redis.
+        Le message contient le request_id, le nom du manager et l'ID utilisateur.
+        """
+        try:
+            request_id = str(uuid.uuid4())
+            registration_request_id_path = os.path.join(settings.BASE_DIR, ".manager_app", "registration_request_id.json")
+            with open(registration_request_id_path, "w") as f:
+                json.dump({"request_id": request_id}, f)
+            
+            message = {
                 "request_id": request_id,
-                "host_name": host_name,
-                "user_id": user_id
+                "manager_name": "Manager Backend",
+                "user_id": "admin"
             }
-        }
-        # Publier le message
-        redis_manager = get_redis_manager()
-        redis_manager.publish("MANAGER_REGISTRATION", json.dumps(message))
-        print(f"[INFO] Message d'enregistrement envoyé avec request_id: {request_id}")
-        
-        # Enregistrer request_id dans le fichier .manager_app/registration_request_id.json
-        registration_request_id_path = os.path.join(settings.BASE_DIR, ".manager_app", "registration_request_id.json")
-        with open(registration_request_id_path, "w") as f:
-            json.dump({"request_id": request_id}, f)
-        print(f"[INFO] request_id enregistré dans {registration_request_id_path}")
+            
+            redis_manager = get_redis_manager()
+            redis_manager.publish("MANAGER_REGISTRATION", json.dumps(message))
+            print(f"[INFO] Message d'enregistrement envoyé avec request_id: {request_id}")
+        except Exception as e:
+            print(f"[ERROR] Impossible d'envoyer le message d'enregistrement : {e}")
 
-
-    
     def send_login_message(self):
-        """ 
+        """
         Envoie un message de connexion au serveur Redis avec les informations du manager.
         Le message contient le request_id, le mananger_id et l'ID utilisateur.
         """
-        # Récupérer les informations nécessaires
-        request_id = str(uuid.uuid4())
-        manager_id = None
-        # Vérifier si le fichier manager_info.json existe
-        manager_info_path = os.path.join(settings.BASE_DIR, ".manager_app", "manager_info.json")
-        if os.path.exists(manager_info_path):
+        try:
+            # Récupérer l'ID du manager
+            manager_info_path = os.path.join(settings.BASE_DIR, ".manager_app", "manager_info.json")
             with open(manager_info_path, "r") as f:
                 manager_info = json.load(f)
-                manager_id = manager_info.get("manager_id")
-        if not manager_id:
-            print("[ERROR] Le manager_id n'est pas trouvé dans le fichier manager_info.json.")
-            return self.send_registration_message()
-        user_id = os.getuid()
-        
-        # Créer le message
-        message = {
-            "channel": "MANAGER_LOGIN",
-            "data": {
+            manager_id = manager_info.get("manager_id")
+            
+            # Générer un request_id
+            request_id = str(uuid.uuid4())
+            login_request_id_path = os.path.join(settings.BASE_DIR, ".manager_app", "login_request_id.json")
+            with open(login_request_id_path, "w") as f:
+                json.dump({"request_id": request_id}, f)
+            
+            # Créer le message
+            message = {
                 "request_id": request_id,
                 "manager_id": manager_id,
-                "user_id": user_id
+                "user_id": "admin"
             }
-        }
-        
-        # Publier le message
-        redis_manager = get_redis_manager()
-        redis_manager.publish("MANAGER_LOGIN", json.dumps(message))
-        print(f"[INFO] Message de connexion envoyé avec request_id: {request_id}")
-        
-        # Enregistrer request_id dans le fichier .manager_app/registration_request_id.json
-        registration_request_id_path = os.path.join(settings.BASE_DIR, ".manager_app", "login_request_id.json")
-        with open(registration_request_id_path, "w") as f:
-            json.dump({"request_id": request_id}, f)
-        print(f"[INFO] request_id enregistré dans {registration_request_id_path}")
-
-        
+            
+            # Envoyer le message
+            redis_manager = get_redis_manager()
+            redis_manager.publish("LOGIN", json.dumps(message))
+            print(f"[INFO] Message de connexion envoyé avec request_id: {request_id}")
+        except Exception as e:
+            print(f"[ERROR] Impossible d'envoyer le message de connexion : {e}")

@@ -4,11 +4,11 @@ from rest_framework.routers import DefaultRouter
 from .views import WorkflowViewSet, submit_workflow_view
 
 router = DefaultRouter()
-router.register(r'workflows', WorkflowViewSet)
+router.register(r'', WorkflowViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('workflows/<str:workflow_id>/submit', submit_workflow_view, name='submit_workflow'),
+    path('<str:workflow_id>/submit/', submit_workflow_view, name='submit_workflow'),
 ]
 # This file defines the URL routing for the Workflow API.
 # It uses Django REST Framework's router to automatically generate the URL patterns for the WorkflowViewSet.

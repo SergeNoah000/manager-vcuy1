@@ -1,28 +1,122 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import get_object_or_404
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
 from .models import Task
 from workflows.models import Workflow
+from volunteers.models import Volunteer, VolunteerTask
+from .serializers import TaskSerializer, TaskDetailSerializer
 
-def tasks_by_workflow(request, workflow_id):
-    """Affiche toutes les tâches liées à un workflow spécifique."""
-    workflow = get_object_or_404(Workflow, id=workflow_id)
-    tasks = workflow.tasks.all()
-    return render(request, 'tasks/tasks_by_workflow.html', {
-        'workflow': workflow,
-        'tasks': tasks,
-    })
+class TaskViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour les opérations CRUD sur les tâches.
+    Permet de créer, lire, mettre à jour et supprimer des tâches.
+    """
+    queryset = Task.objects.all()
+    serializer_class = TaskSerializer
+    permission_classes = [AllowAny]
 
-def task_detail(request, task_id):
-    """Affiche les détails d'une tâche spécifique."""
-    task = get_object_or_404(Task, id=task_id)
-    return render(request, 'tasks/task_detail.html', {
-        'task': task,
-    })
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return TaskDetailSerializer
+        return TaskSerializer
 
-# Placeholder pour tâches par volontaire
-def tasks_by_volunteer(request, volunteer_id):
-    """(À venir) Affiche les tâches assignées à un volontaire spécifique."""
-    # À compléter quand le modèle Volunteer <-> Task est établi
-    return render(request, 'tasks/tasks_by_volunteer.html', {
-        'volunteer_id': volunteer_id,
-        'tasks': [],  # temporairement vide
-    })
+    def perform_create(self, serializer):
+        # Récupérer le workflow associé
+        workflow_id = self.request.data.get('workflow')
+        workflow = get_object_or_404(Workflow, id=workflow_id)
+        serializer.save(workflow=workflow)
+
+    @action(detail=True, methods=['post'])
+    def assign(self, request, pk=None):
+        """
+        Assigner une tâche à un volontaire spécifique.
+        """
+        task = self.get_object()
+        volunteer_id = request.data.get('volunteer_id')
+        
+        if not volunteer_id:
+            return Response(
+                {"error": "Volunteer ID is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            volunteer = Volunteer.objects.get(id=volunteer_id)
+        except Volunteer.DoesNotExist:
+            return Response(
+                {"error": "Volunteer not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Vérifier si la tâche est déjà assignée à ce volontaire
+        if VolunteerTask.objects.filter(task=task, volunteer=volunteer).exists():
+            return Response(
+                {"error": "Task already assigned to this volunteer"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Créer l'assignation
+        volunteer_task = VolunteerTask.objects.create(
+            task=task,
+            volunteer=volunteer,
+            status="ASSIGNED"
+        )
+        
+        # Mettre à jour le statut de la tâche
+        task.status = "ASSIGNED"
+        task.save()
+        
+        return Response(
+            {"message": f"Task assigned to volunteer {volunteer.name}"}, 
+            status=status.HTTP_201_CREATED
+        )
+
+    @action(detail=True, methods=['get'])
+    def volunteers(self, request, pk=None):
+        """
+        Récupérer tous les volontaires assignés à cette tâche.
+        """
+        task = self.get_object()
+        volunteer_tasks = VolunteerTask.objects.filter(task=task)
+        volunteers = [vt.volunteer for vt in volunteer_tasks]
+        
+        from volunteers.serializers import VolunteerSerializer
+        serializer = VolunteerSerializer(volunteers, many=True)
+        
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def by_workflow(self, request):
+        """
+        Filtrer les tâches par workflow.
+        """
+        workflow_id = request.query_params.get('workflow_id')
+        if not workflow_id:
+            return Response(
+                {"error": "Workflow ID is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        tasks = Task.objects.filter(workflow__id=workflow_id)
+        serializer = self.get_serializer(tasks, many=True)
+        
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def by_status(self, request):
+        """
+        Filtrer les tâches par statut.
+        """
+        status_param = request.query_params.get('status')
+        if not status_param:
+            return Response(
+                {"error": "Status parameter is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        tasks = Task.objects.filter(status=status_param)
+        serializer = self.get_serializer(tasks, many=True)
+        
+        return Response(serializer.data)
