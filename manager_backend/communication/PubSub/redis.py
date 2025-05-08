@@ -6,7 +6,7 @@ from django.conf import settings
 
 
 class RedisPubSubManager:
-    def __init__(self, host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=settings.REDIS_DB, channels=settings.REDIS_CHANNELS):
+    def __init__(self, host=settings.REDIS_HOST or '192.168.1.105', port=settings.REDIS_PORT or '6080', db=settings.REDIS_DB, channels=settings.REDIS_CHANNELS):
         self.host = host
         self.port = port
         self.db = db

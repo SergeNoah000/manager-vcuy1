@@ -11,13 +11,7 @@ def initialize_redis_manager():
     global redis_instance
     with lock:
         if redis_instance is None:
-            redis_instance = RedisPubSubManager(
-                host=os.getenv("REDIS_HOST", "localhost"),
-                port=int(os.getenv("REDIS_PORT", 6379)),
-                db=int(os.getenv("REDIS_DB", 0)),
-                channels=[os.getenv("REDIS_CHANNELS", ["SUBMIT_WORKFLOW_RESPONSE, SUBMIT_WORKFLOW_RESPONSE", 
-                                                       "TASK_RESULT", "URGENT", "SYSTEM", "LOGIN_RESPONSE", "REGISTRATION_RESPONSE"])],
-            )
+            redis_instance = RedisPubSubManager()
             redis_instance.connect()
             print("[INFO] RedisPubSubManager initialisé avec succès.")
         
