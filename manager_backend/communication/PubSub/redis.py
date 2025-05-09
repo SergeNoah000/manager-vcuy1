@@ -12,7 +12,10 @@ class RedisPubSubManager:
         self.db = db
         self.redis_client = None
         self.pubsub = None
-        self.channels = channels or []
+        self.channels = channels or [
+            'auth/login_response',
+            'auth/register_response'
+        ]
         self.subscribed = False
         self.listener_thread = None
 
