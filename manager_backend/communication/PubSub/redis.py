@@ -1,14 +1,15 @@
 import redis
 import threading
+import json
 from redis import ConnectionError
 from redis import RedisError
 from django.conf import settings
 
 
 class RedisPubSubManager:
-    def __init__(self, host=settings.REDIS_HOST or '192.168.1.105', port=settings.REDIS_PORT or '6080', db=settings.REDIS_DB, channels=settings.REDIS_CHANNELS):
+    def __init__(self, host=settings.REDIS_HOST or '192.168.1.105', port=settings.REDIS_PORT or 6380, db=settings.REDIS_DB, channels=settings.REDIS_CHANNELS):
         self.host = host
-        self.port = port
+        self.port = int(port) if isinstance(port, str) else port
         self.db = db
         self.redis_client = None
         self.pubsub = None
@@ -66,8 +67,27 @@ class RedisPubSubManager:
         """Boucle d'écoute des messages."""
         for message in self.pubsub.listen():
             if message['type'] == 'message':
-                # Les callbacks sont appelés automatiquement
-                pass
+                channel = message['channel']
+                data = message['data']
+                
+                print(f"[INFO] Message reçu sur le canal {channel}")
+                
+                # Récupérer le callback pour ce canal
+                callback_found = False
+                for ch, callback in self.pubsub.channels.items():
+                    if ch.decode('utf-8') == channel:
+                        # Appeler le callback avec les données brutes
+                        # La fonction handle_message s'occupera de formater le message
+                        try:
+                            callback(data)
+                            callback_found = True
+                        except Exception as e:
+                            print(f"[ERROR] Erreur lors de l'appel du callback pour {channel}: {e}")
+                            import traceback
+                            traceback.print_exc()
+                
+                if not callback_found:
+                    print(f"[WARNING] Aucun callback trouvé pour le canal {channel}")
 
     def publish(self, channel, message):
         """Publie un message sur un canal."""
