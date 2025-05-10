@@ -3,7 +3,8 @@ from torchvision import transforms
 from torch.utils.data import TensorDataset, DataLoader
 
 class SimpleNet(nn.Module):
-    def __init__(self): super().__init__()
+    def __init__(self):
+        super().__init__()
         self.fc = nn.Sequential(
             nn.Flatten(),
             nn.Linear(32*32*3, 128), nn.ReLU(),
