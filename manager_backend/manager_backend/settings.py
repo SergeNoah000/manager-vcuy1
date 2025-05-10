@@ -41,8 +41,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # Third-party apps
-    'rest_framework',
     'corsheaders',
+    'rest_framework',
+    'rest_framework.authtoken',
 
     # Your apps
     'workflows',
@@ -56,11 +57,14 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+
+CORS_ALLOW_ALL_ORIGINS = True  # En développement uniquement
 
 # --- URL & WSGI ---
 ROOT_URLCONF = 'manager_backend.urls'
@@ -141,8 +145,12 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
+AUTH_USER_MODEL = 'workflows.User'
 
-
+AUTHENTICATION_BACKENDS = [
+    'workflows.auth.EmailBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
 # --- REST FRAMEWORK CONFIG ---
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': (
@@ -167,7 +175,12 @@ CORS_ALLOW_ALL_ORIGINS = True
 #     'http://127.0.0.1:3000',
 # ]
 
-
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+}
 
 # --- MANAGER HOST ---
 MANAGER_HOST = 'http://192.168.1.1'  # Change this to your actual host
