@@ -18,7 +18,7 @@ const workflowTypes = [
 export default function CreateWorkflowPage() {
   const router = useRouter();
 
-  // État du formulaire
+  // État du formulaire avec des valeurs par défaut qui sont des strings pour éviter NaN
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -41,15 +41,25 @@ export default function CreateWorkflowPage() {
     visible: { opacity: 1, y: 0 }
   };
 
-  // Gestion des changements de champs
+  // Gestion des changements de champs avec sécurité contre NaN
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'priority' || name === 'max_execution_time' || name === 'retry_count' 
-        ? parseInt(value, 10) 
-        : value
-    }));
+    
+    // Pour les champs numériques, vérifier et convertir proprement les valeurs
+    if (name === 'priority' || name === 'max_execution_time' || name === 'retry_count') {
+      const numValue = parseInt(value, 10);
+      setFormData(prev => ({
+        ...prev,
+        // Utiliser la valeur numérique seulement si c'est un nombre valide
+        [name]: isNaN(numValue) ? 0 : numValue
+      }));
+    } else {
+      // Pour les valeurs textuelles
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   // Soumission du formulaire
@@ -59,7 +69,16 @@ export default function CreateWorkflowPage() {
     setError(null);
 
     try {
-      const response = await workflowService.createWorkflow(formData);
+      // Vérifier les valeurs numériques avant l'envoi
+      const dataToSubmit = {
+        ...formData,
+        // S'assurer que les valeurs numériques sont des nombres valides
+        priority: isNaN(formData.priority) ? 1 : formData.priority,
+        max_execution_time: isNaN(formData.max_execution_time) ? 3600 : formData.max_execution_time,
+        retry_count: isNaN(formData.retry_count) ? 3 : formData.retry_count
+      };
+
+      const response = await workflowService.createWorkflow(dataToSubmit);
       router.push(`/workflows/${response.id}`);
     } catch (err: any) {
       console.error('Erreur lors de la création du workflow:', err);
@@ -70,23 +89,23 @@ export default function CreateWorkflowPage() {
   };
 
   // Fonction pour obtenir l'icône en fonction du type de workflow
-interface WorkflowType {
+  interface WorkflowType {
     value: string;
     label: string;
     icon: string;
-}
+  }
 
-const getWorkflowIcon = (type: string): string => {
+  const getWorkflowIcon = (type: string): string => {
     const workflowType: WorkflowType | undefined = workflowTypes.find(wt => wt.value === type);
     return workflowType ? workflowType.icon : '🔧';
-};
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-12">
+    <div className="min-h-screen bg-gray-50 py-12">
       <div className="container mx-auto px-4 max-w-4xl">
         <Link
           href="/workflows"
-          className="inline-flex items-center text-indigo-600 hover:text-indigo-800 font-medium mb-6 transition-colors"
+          className="inline-flex items-center text-indigo-700 hover:text-indigo-900 font-medium mb-6 transition-colors"
         >
           <HiOutlineArrowLeft className="mr-2" /> Retour à la liste des workflows
         </Link>
@@ -95,15 +114,15 @@ const getWorkflowIcon = (type: string): string => {
           initial="hidden"
           animate="visible"
           variants={fadeInUp}
-          className="bg-white rounded-xl shadow-xl overflow-hidden"
+          className="bg-white rounded-xl shadow-xl overflow-hidden border border-indigo-100"
         >
-          <div className="bg-gradient-to-r from-indigo-600 to-blue-500 px-8 py-6 text-white">
-            <h1 className="text-3xl font-bold">Créer un nouveau workflow</h1>
-            <p className="mt-2 opacity-90">Paramétrez votre workflow de calcul en quelques étapes</p>
+          <div className="bg-gradient-to-r from-indigo-700 to-blue-600 px-8 py-7 text-white">
+            <h1 className="text-3xl font-bold drop-shadow-sm">Créer un nouveau workflow</h1>
+            <p className="mt-2 opacity-90 text-indigo-50">Paramétrez votre workflow de calcul en quelques étapes</p>
           </div>
 
           {error && (
-            <div className="mx-8 mt-6 bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded">
+            <div className="mx-8 mt-6 bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-sm">
               <div className="flex items-center">
                 <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -120,14 +139,16 @@ const getWorkflowIcon = (type: string): string => {
               className="mb-8"
             >
               <div className="flex items-center mb-4">
-                <HiOutlineDocumentAdd className="text-2xl text-indigo-600 mr-2" />
+                <div className="bg-indigo-100 p-2 rounded-lg mr-3">
+                  <HiOutlineDocumentAdd className="text-2xl text-indigo-700" />
+                </div>
                 <h2 className="text-xl font-semibold text-gray-800">Informations de base</h2>
               </div>
               
-              <div className="p-6 bg-indigo-50 rounded-lg">
+              <div className="p-6 bg-white rounded-lg border border-indigo-200 shadow-sm">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-900 mb-1">
                       Nom du workflow <span className="text-indigo-600">*</span>
                     </label>
                     <input
@@ -143,7 +164,7 @@ const getWorkflowIcon = (type: string): string => {
                   </div>
                   
                   <div>
-                    <label htmlFor="workflow_type" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="workflow_type" className="block text-sm font-medium text-gray-900 mb-1">
                       Type de workflow <span className="text-indigo-600">*</span>
                     </label>
                     <div className="relative">
@@ -153,7 +174,7 @@ const getWorkflowIcon = (type: string): string => {
                         required
                         value={formData.workflow_type}
                         onChange={handleChange}
-                        className="block w-full appearance-none border border-gray-300 rounded-lg shadow-sm py-3 px-4 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                        className="block w-full appearance-none border border-gray-300 rounded-lg shadow-sm py-3 px-4 pr-10 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white"
                       >
                         {workflowTypes.map(type => (
                           <option key={type.value} value={type.value}>
@@ -162,7 +183,7 @@ const getWorkflowIcon = (type: string): string => {
                         ))}
                       </select>
                       <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                        <svg className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                        <svg className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                         </svg>
                       </div>
@@ -171,7 +192,7 @@ const getWorkflowIcon = (type: string): string => {
                 </div>
                 
                 <div className="mt-4">
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="description" className="block text-sm font-medium text-gray-900 mb-1">
                     Description
                   </label>
                   <textarea
@@ -185,16 +206,16 @@ const getWorkflowIcon = (type: string): string => {
                   />
                 </div>
                 
-                <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                <div className="mt-5 p-4 bg-indigo-50 border border-indigo-100 rounded-lg shadow-inner">
                   <div className="flex items-start">
                     <div className="flex-shrink-0">
-                      <div className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-100 text-blue-600">
+                      <div className="flex items-center justify-center h-12 w-12 rounded-full bg-indigo-600 text-white shadow-md">
                         {getWorkflowIcon(formData.workflow_type)}
                       </div>
                     </div>
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium text-blue-800">Type sélectionné: {workflowTypes.find(wt => wt.value === formData.workflow_type)?.label}</h3>
-                      <p className="mt-1 text-sm text-blue-600">
+                    <div className="ml-4">
+                      <h3 className="text-sm font-semibold text-indigo-900">Type sélectionné: {workflowTypes.find(wt => wt.value === formData.workflow_type)?.label}</h3>
+                      <p className="mt-1 text-sm text-indigo-700">
                         {formData.workflow_type === 'ML_TRAINING' && "Ce type de workflow est optimisé pour les tâches d'apprentissage automatique."}
                         {formData.workflow_type === 'MATRIX_ADDITION' && "Ce type de workflow est optimisé pour les additions de matrices de grande taille."}
                         {formData.workflow_type === 'MATRIX_MULTIPLICATION' && "Ce type de workflow est optimisé pour les multiplications de matrices de grande taille."}
@@ -212,19 +233,21 @@ const getWorkflowIcon = (type: string): string => {
               className="mb-8"
             >
               <div className="flex items-center mb-4">
-                <HiOutlineCog className="text-2xl text-indigo-600 mr-2" />
+                <div className="bg-indigo-100 p-2 rounded-lg mr-3">
+                  <HiOutlineCog className="text-2xl text-indigo-700" />
+                </div>
                 <h2 className="text-xl font-semibold text-gray-800">Paramètres d'exécution</h2>
               </div>
               
-              <div className="p-6 bg-indigo-50 rounded-lg">
+              <div className="p-6 bg-white rounded-lg border border-indigo-200 shadow-sm">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label htmlFor="executable_path" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="executable_path" className="block text-sm font-medium text-gray-900 mb-1">
                       Chemin de l'exécutable
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
                       </div>
@@ -241,12 +264,12 @@ const getWorkflowIcon = (type: string): string => {
                   </div>
                   
                   <div>
-                    <label htmlFor="input_path" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="input_path" className="block text-sm font-medium text-gray-900 mb-1">
                       Chemin des données d'entrée
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                         </svg>
                       </div>
@@ -263,12 +286,12 @@ const getWorkflowIcon = (type: string): string => {
                   </div>
                   
                   <div className="md:col-span-2">
-                    <label htmlFor="output_path" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="output_path" className="block text-sm font-medium text-gray-900 mb-1">
                       Chemin des résultats
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                         </svg>
                       </div>
@@ -293,14 +316,16 @@ const getWorkflowIcon = (type: string): string => {
               className="mb-8"
             >
               <div className="flex items-center mb-4">
-                <HiOutlineClock className="text-2xl text-indigo-600 mr-2" />
+                <div className="bg-indigo-100 p-2 rounded-lg mr-3">
+                  <HiOutlineClock className="text-2xl text-indigo-700" />
+                </div>
                 <h2 className="text-xl font-semibold text-gray-800">Paramètres avancés</h2>
               </div>
               
-              <div className="p-6 bg-indigo-50 rounded-lg">
+              <div className="p-6 bg-white rounded-lg border border-indigo-200 shadow-sm">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
-                    <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="priority" className="block text-sm font-medium text-gray-900 mb-1">
                       Priorité (1-10)
                     </label>
                     <div className="relative">
@@ -314,12 +339,12 @@ const getWorkflowIcon = (type: string): string => {
                         onChange={handleChange}
                         className="block w-full border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                       />
-                      <div className="mt-1 text-xs text-gray-500">Plus la valeur est élevée, plus la priorité est haute</div>
+                      <div className="mt-1 text-sm text-indigo-800 font-medium">Plus la valeur est élevée, plus la priorité est haute</div>
                     </div>
                   </div>
                   
                   <div>
-                    <label htmlFor="max_execution_time" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="max_execution_time" className="block text-sm font-medium text-gray-900 mb-1">
                       Temps d'exécution max (s)
                     </label>
                     <div className="relative">
@@ -332,12 +357,12 @@ const getWorkflowIcon = (type: string): string => {
                         onChange={handleChange}
                         className="block w-full border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                       />
-                      <div className="mt-1 text-xs text-gray-500">Durée maximale en secondes avant arrêt forcé</div>
+                      <div className="mt-1 text-sm text-indigo-800 font-medium">Durée maximale en secondes avant arrêt forcé</div>
                     </div>
                   </div>
                   
                   <div>
-                    <label htmlFor="retry_count" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="retry_count" className="block text-sm font-medium text-gray-900 mb-1">
                       Nombre de tentatives
                     </label>
                     <div className="relative">
@@ -347,11 +372,29 @@ const getWorkflowIcon = (type: string): string => {
                         type="number"
                         min="0"
                         max="10"
-                        value={formData.retry_count}
+                        value={formData.retry_count.toString()}
                         onChange={handleChange}
                         className="block w-full border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                       />
-                      <div className="mt-1 text-xs text-gray-500">Nombre de réessais en cas d'échec (0 = aucun)</div>
+                      <div className="mt-1 text-sm text-indigo-800 font-medium">Nombre de réessais en cas d'échec (0 = aucun)</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h4 className="text-sm font-medium text-blue-800">Conseils pour les paramètres avancés</h4>
+                      <ul className="mt-1 text-sm text-blue-700 list-disc list-inside">
+                        <li>Une priorité élevée (8-10) est recommandée pour les tâches urgentes</li>
+                        <li>Le temps d'exécution doit être suffisant pour permettre l'achèvement du workflow</li>
+                        <li>Définissez plusieurs tentatives pour les workflows avec des dépendances externes</li>
+                      </ul>
                     </div>
                   </div>
                 </div>
@@ -365,14 +408,14 @@ const getWorkflowIcon = (type: string): string => {
             >
               <Link
                 href="/workflows"
-                className="py-3 px-6 rounded-lg text-gray-700 bg-gray-100 hover:bg-gray-200 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                className="py-3 px-6 rounded-lg text-gray-700 bg-gray-200 hover:bg-gray-300 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm"
               >
                 Annuler
               </Link>
               <button
                 type="submit"
                 disabled={loading}
-                className={`py-3 px-6 rounded-lg font-medium text-white bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all ${
+                className={`py-3 px-8 rounded-lg font-medium text-white bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all ${
                   loading ? 'opacity-70 cursor-not-allowed' : ''
                 }`}
               >
