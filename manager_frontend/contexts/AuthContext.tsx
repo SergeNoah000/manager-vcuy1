@@ -1,4 +1,3 @@
-// contexts/AuthContext.tsx
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -19,6 +18,7 @@ interface AuthContextType {
   register: (userData: { username: string; email: string; password: string; password2: string }) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
+  clearError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,10 +35,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         if (authService.isAuthenticated()) {
           const currentUser = authService.getCurrentUser();
-          setUser(currentUser);
+          if (currentUser) {
+            console.log("[Auth] Utilisateur chargé depuis le stockage local:", currentUser.email);
+            setUser(currentUser);
+          }
+        } else {
+          console.log("[Auth] Aucun utilisateur authentifié");
         }
       } catch (error) {
-        console.error('Erreur de vérification d\'authentification:', error);
+        console.error('[Auth] Erreur de vérification d\'authentification:', error);
       } finally {
         setLoading(false);
       }
@@ -47,16 +52,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, []);
 
-  // Fonction de connexion
+  // Effacer les erreurs
+  const clearError = () => setError(null);
+
+  // Fonction de connexion avec meilleure gestion d'erreur
   const login = async (email: string, password: string) => {
     setLoading(true);
     setError(null);
+    
     try {
+      console.log('[Auth] Tentative de connexion avec:', email);
+      
       const data = await authService.login({ email, password });
-      setUser(data.user);
-      router.push('/workflows');
+      console.log('[Auth] Connexion réussie:', data);
+      
+      if (data && data.user) {
+        setUser(data.user);
+        
+        // Ajouter un délai avant la redirection
+        setTimeout(() => {
+          console.log('[Auth] Redirection vers les workflows');
+          router.push('/workflows');
+        }, 300);
+      } else {
+        throw new Error('Réponse du serveur invalide');
+      }
     } catch (error: any) {
-      const errorMessage = error.error || 'Une erreur est survenue lors de la connexion';
+      console.error('[Auth] Erreur de connexion:', error);
+      
+      // Extraction optimisée du message d'erreur
+      let errorMessage = 'Une erreur est survenue lors de la connexion';
+      
+      if (error?.error) {
+        errorMessage = error.error;
+      } else if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       setError(errorMessage);
       throw error;
     } finally {
@@ -64,27 +98,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Fonction d'inscription
+  // Fonction d'inscription avec meilleure gestion d'erreur
   const register = async (userData: { username: string; email: string; password: string; password2: string }) => {
     setLoading(true);
     setError(null);
+    
     try {
-      const data = await authService.register(userData);
-      setUser(data.user);
-      router.push('/workflows');
-    } catch (error: any) {
-      console.log('Erreur lors de l\'inscription dans le contexte:', error);
+      console.log('[Auth] Tentative d\'inscription avec:', { 
+        email: userData.email, 
+        username: userData.username,
+        password: '****'
+      });
       
+      const data = await authService.register(userData);
+      console.log('[Auth] Inscription réussie:', data);
+      
+      if (data && data.user) {
+        setUser(data.user);
+        
+        // Ajouter un délai avant la redirection
+        setTimeout(() => {
+          console.log('[Auth] Redirection vers les workflows');
+          router.push('/workflows');
+        }, 300);
+      } else {
+        throw new Error('Réponse du serveur invalide');
+      }
+    } catch (error: any) {
+      console.error('[Auth] Erreur d\'inscription:', error);
+      
+      // Extraction optimisée du message d'erreur
       let errorMessage = 'Une erreur est survenue lors de l\'inscription';
       
-      if (typeof error === 'string') {
-        errorMessage = error;
-      } else if (error && typeof error === 'object') {
-        if (error.error) errorMessage = error.error;
-        else if (error.username) errorMessage = `Nom d'utilisateur: ${error.username}`;
-        else if (error.email) errorMessage = `Email: ${error.email}`;
-        else if (error.password) errorMessage = `Mot de passe: ${error.password}`;
-        else if (error.password2) errorMessage = `Confirmation de mot de passe: ${error.password2}`;
+      if (error?.error) {
+        errorMessage = error.error;
+      } else if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error?.response?.data?.username) {
+        errorMessage = `Nom d'utilisateur: ${error.response.data.username}`;
+      } else if (error?.response?.data?.email) {
+        errorMessage = `Email: ${error.response.data.email}`;
+      } else if (error?.response?.data?.password) {
+        errorMessage = `Mot de passe: ${error.response.data.password}`;
+      } else if (error?.message) {
+        errorMessage = error.message;
       }
       
       setError(errorMessage);
@@ -98,11 +155,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     setLoading(true);
     try {
+      console.log('[Auth] Tentative de déconnexion');
       await authService.logout();
       setUser(null);
-      router.push('/login');
+      
+      // Redirection avec délai
+      setTimeout(() => {
+        console.log('[Auth] Redirection vers la page de connexion');
+        router.push('/login');
+      }, 100);
     } catch (error) {
-      console.error('Erreur de déconnexion:', error);
+      console.error('[Auth] Erreur de déconnexion:', error);
+      // En cas d'erreur, nettoyer quand même
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -118,6 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         isAuthenticated: !!user,
+        clearError,
       }}
     >
       {children}

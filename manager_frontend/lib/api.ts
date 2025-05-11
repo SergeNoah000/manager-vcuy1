@@ -23,6 +23,20 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Log pour débogage des réponses
+api.interceptors.response.use(
+  response => {
+    console.log(`[API] Réponse ${response.config.url}:`, response.status, response.data);
+    return response;
+  },
+  error => {
+    console.error(`[API] Erreur ${error.config?.url || 'inconnue'}:`, 
+      error.response?.status || 'no status', 
+      error.response?.data || error.message);
+    return Promise.reject(error);
+  }
+);
+
 // Services d'authentification
 export const authService = {
   // Inscription
@@ -33,8 +47,12 @@ export const authService = {
     password2: string;
   }) => {
     try {
-      // Afficher les données pour le débogage
-      console.log('Envoi des données d\'inscription:', userData);
+      // Afficher les données pour le débogage (sans le mot de passe)
+      console.log('Envoi des données d\'inscription:', {
+        username: userData.username,
+        email: userData.email,
+        password: '********'
+      });
       
       // Envoi de la requête
       const response = await api.post('/workflows/auth/register/', userData);
@@ -47,16 +65,14 @@ export const authService = {
       
       return response.data;
     } catch (error) {
-      // Afficher l'erreur brute complète pour le débogage
+      // Afficher l'erreur pour le débogage
       console.error('Erreur brute:', error);
       
-      // Gérer spécifiquement les erreurs 500
+      // Gérer spécifiquement les erreurs
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 500) {
           console.error('Erreur serveur 500:', error.response.data);
-          return Promise.reject({ 
-            error: "Une erreur serveur s'est produite. Veuillez réessayer plus tard." 
-          });
+          throw { error: "Une erreur serveur s'est produite. Veuillez réessayer plus tard." };
         }
         
         if (error.response?.data) {
@@ -64,38 +80,38 @@ export const authService = {
           
           // Traiter les différents formats d'erreur possibles
           if (typeof error.response.data === 'string') {
-            return Promise.reject({ error: error.response.data });
+            throw { error: error.response.data };
           }
           
           if (error.response.data.error) {
-            return Promise.reject({ error: error.response.data.error });
+            throw { error: error.response.data.error };
           }
           
           if (error.response.data.email) {
-            return Promise.reject({ error: `Email: ${error.response.data.email}` });
+            throw { error: `Email: ${error.response.data.email}` };
           }
           
           if (error.response.data.username) {
-            return Promise.reject({ error: `Username: ${error.response.data.username}` });
+            throw { error: `Username: ${error.response.data.username}` };
           }
           
           if (error.response.data.password) {
-            return Promise.reject({ error: `Password: ${error.response.data.password}` });
+            throw { error: `Password: ${error.response.data.password}` };
           }
           
-          return Promise.reject(error.response.data);
+          throw error.response.data;
         }
       }
       
       // Erreur générique
-      return Promise.reject({ error: 'Une erreur est survenue lors de l\'inscription' });
+      throw { error: 'Une erreur est survenue lors de l\'inscription' };
     }
   },
 
   // Connexion
   login: async (credentials: { email: string; password: string }) => {
     try {
-      console.log('Tentative de connexion:', credentials);
+      console.log('Tentative de connexion:', { email: credentials.email, password: '********' });
       const response = await api.post('/workflows/auth/login/', credentials);
       
       // Si succès, stockage du token
@@ -110,33 +126,31 @@ export const authService = {
       
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 500) {
-          return Promise.reject({ 
-            error: "Une erreur serveur s'est produite. Veuillez réessayer plus tard." 
-          });
+          throw { error: "Une erreur serveur s'est produite. Veuillez réessayer plus tard." };
         }
         
         if (error.response?.data) {
           if (typeof error.response.data === 'string') {
-            return Promise.reject({ error: error.response.data });
+            throw { error: error.response.data };
           }
           
           if (error.response.data.error) {
-            return Promise.reject({ error: error.response.data.error });
+            throw { error: error.response.data.error };
           }
           
           if (error.response.data.email) {
-            return Promise.reject({ error: `Email: ${error.response.data.email}` });
+            throw { error: `Email: ${error.response.data.email}` };
           }
           
           if (error.response.data.non_field_errors) {
-            return Promise.reject({ error: error.response.data.non_field_errors[0] });
+            throw { error: error.response.data.non_field_errors[0] };
           }
           
-          return Promise.reject(error.response.data);
+          throw error.response.data;
         }
       }
       
-      return Promise.reject({ error: 'Une erreur est survenue lors de la connexion' });
+      throw { error: 'Une erreur est survenue lors de la connexion' };
     }
   },
 
@@ -183,9 +197,9 @@ export const workflowService = {
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
-        return Promise.reject(error.response.data);
+        throw error.response.data;
       } else {
-        return Promise.reject({ error: 'Une erreur est survenue lors de la récupération des workflows' });
+        throw { error: 'Une erreur est survenue lors de la récupération des workflows' };
       }
     }
   },
@@ -197,9 +211,9 @@ export const workflowService = {
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
-        return Promise.reject(error.response.data);
+        throw error.response.data;
       } else {
-        return Promise.reject({ error: 'Une erreur est survenue lors de la récupération du workflow' });
+        throw { error: 'Une erreur est survenue lors de la récupération du workflow' };
       }
     }
   },
@@ -211,9 +225,9 @@ export const workflowService = {
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
-        return Promise.reject(error.response.data);
+        throw error.response.data;
       } else {
-        return Promise.reject({ error: 'Une erreur est survenue lors de la création du workflow' });
+        throw { error: 'Une erreur est survenue lors de la création du workflow' };
       }
     }
   },
@@ -225,9 +239,9 @@ export const workflowService = {
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
-        return Promise.reject(error.response.data);
+        throw error.response.data;
       } else {
-        return Promise.reject({ error: 'Une erreur est survenue lors de la mise à jour du workflow' });
+        throw { error: 'Une erreur est survenue lors de la mise à jour du workflow' };
       }
     }
   },
@@ -239,9 +253,9 @@ export const workflowService = {
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
-        return Promise.reject(error.response.data);
+        throw error.response.data;
       } else {
-        return Promise.reject({ error: 'Une erreur est survenue lors de la suppression du workflow' });
+        throw { error: 'Une erreur est survenue lors de la suppression du workflow' };
       }
     }
   },
@@ -253,9 +267,9 @@ export const workflowService = {
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
-        return Promise.reject(error.response.data);
+        throw error.response.data;
       } else {
-        return Promise.reject({ error: 'Une erreur est survenue lors de la soumission du workflow' });
+        throw { error: 'Une erreur est survenue lors de la soumission du workflow' };
       }
     }
   },
@@ -267,9 +281,9 @@ export const workflowService = {
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error) && error.response) {
-        return Promise.reject(error.response.data);
+        throw error.response.data;
       } else {
-        return Promise.reject({ error: 'Une erreur est survenue lors de la récupération des tâches du workflow' });
+        throw { error: 'Une erreur est survenue lors de la récupération des tâches du workflow' };
       }
     }
   }

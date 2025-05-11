@@ -167,13 +167,15 @@ REST_FRAMEWORK = {
     ]
 }
 
-# --- CORS CONFIG ---
-CORS_ALLOW_ALL_ORIGINS = True
-# Si tu veux limiter :
-# CORS_ALLOWED_ORIGINS = [
-#     'http://localhost:3000',
-#     'http://127.0.0.1:3000',
-# ]
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3001",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3001",
+]
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -185,8 +187,17 @@ REST_FRAMEWORK = {
 # --- MANAGER HOST ---
 MANAGER_HOST = 'http://192.168.1.1'  # Change this to your actual host
 
+
+# Configuration Redis
+# Si environnement de développement, utiliser localhost
+if DEBUG:
+    REDIS_HOST = '127.0.0.1'  # localhost
+    REDIS_PORT = 6379  # port Redis standard
+else:
+    REDIS_HOST = '192.168.1.105'  # serveur de production
+    REDIS_PORT = 6380
+
 # --- REDIS CONFIG ---
-REDIS_HOST = '192.168.1.105'
-REDIS_PORT = 6380
+
 REDIS_DB = 0
 REDIS_CHANNELS = []
