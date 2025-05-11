@@ -289,4 +289,405 @@ export const workflowService = {
   }
 };
 
+// Gestion des tâches
+export const taskService = {
+  // Récupérer toutes les tâches
+  getTasks: async () => {
+    try {
+      const response = await api.get('/tasks/');
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la récupération des tâches' };
+      }
+    }
+  },
+
+  // Récupérer une tâche par ID
+  getTask: async (id: string) => {
+    try {
+      const response = await api.get(`/tasks/${id}/`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la récupération de la tâche' };
+      }
+    }
+  },
+
+  // Récupérer les tâches d'un workflow
+  getWorkflowTasks: async (workflowId: string) => {
+    try {
+      const response = await api.get(`/tasks/by_workflow/?workflow_id=${workflowId}`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la récupération des tâches du workflow' };
+      }
+    }
+  },
+
+  // Créer une tâche
+  createTask: async (taskData: any) => {
+    try {
+      const response = await api.post('/tasks/', taskData);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la création de la tâche' };
+      }
+    }
+  },
+
+  // Mettre à jour une tâche
+  updateTask: async (id: string, taskData: any) => {
+    try {
+      const response = await api.put(`/tasks/${id}/`, taskData);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la mise à jour de la tâche' };
+      }
+    }
+  },
+
+  // Supprimer une tâche
+  deleteTask: async (id: string) => {
+    try {
+      const response = await api.delete(`/tasks/${id}/`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la suppression de la tâche' };
+      }
+    }
+  },
+
+  // Assigner une tâche à un volontaire
+  assignTask: async (taskId: string, volunteerId: string) => {
+    try {
+      const response = await api.post(`/tasks/${taskId}/assign/`, { volunteer_id: volunteerId });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de l\'assignation de la tâche' };
+      }
+    }
+  },
+
+  // Récupérer les volontaires assignés à une tâche
+  getTaskVolunteers: async (taskId: string) => {
+    try {
+      const response = await api.get(`/tasks/${taskId}/volunteers/`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la récupération des volontaires de la tâche' };
+      }
+    }
+  },
+
+  // Récupérer les tâches par statut
+  getTasksByStatus: async (status: string) => {
+    try {
+      const response = await api.get(`/tasks/by_status/?status=${status}`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la récupération des tâches par statut' };
+      }
+    }
+  },
+
+  // Démarrer une tâche
+  startTask: async (taskId: string) => {
+    try {
+      const response = await api.post(`/tasks/${taskId}/start/`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors du démarrage de la tâche' };
+      }
+    }
+  },
+
+  // Terminer une tâche
+  completeTask: async (taskId: string) => {
+    try {
+      const response = await api.post(`/tasks/${taskId}/complete/`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la complétion de la tâche' };
+      }
+    }
+  },
+
+  // Marquer une tâche comme échouée
+  failTask: async (taskId: string, errorMessage: string = '') => {
+    try {
+      const response = await api.post(`/tasks/${taskId}/fail/`, { error: errorMessage });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors du marquage de la tâche comme échouée' };
+      }
+    }
+  },
+
+  // Mettre à jour la progression d'une tâche
+  updateTaskProgress: async (taskId: string, progress: number) => {
+    try {
+      const response = await api.post(`/tasks/${taskId}/update_progress/`, { progress });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la mise à jour de la progression' };
+      }
+    }
+  }
+};
+
+// Gestion des volontaires
+export const volunteerService = {
+  // Récupérer tous les volontaires
+  getVolunteers: async () => {
+    try {
+      const response = await api.get('/volunteers/');
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la récupération des volontaires' };
+      }
+    }
+  },
+
+  // Récupérer un volontaire par ID
+  getVolunteer: async (id: string) => {
+    try {
+      const response = await api.get(`/volunteers/${id}/`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la récupération du volontaire' };
+      }
+    }
+  },
+
+  // Récupérer les volontaires par workflow
+  getWorkflowVolunteers: async (workflowId: string) => {
+    try {
+      const response = await api.get(`/volunteers/by_workflow/?workflow_id=${workflowId}`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la récupération des volontaires du workflow' };
+      }
+    }
+  },
+
+  // Récupérer les volontaires par statut
+  getVolunteersByStatus: async (status: string) => {
+    try {
+      const response = await api.get(`/volunteers/by_status/?status=${status}`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la récupération des volontaires par statut' };
+      }
+    }
+  },
+
+  // Récupérer les tâches assignées à un volontaire
+  getVolunteerTasks: async (volunteerId: string) => {
+    try {
+      const response = await api.get(`/volunteers/${volunteerId}/tasks/`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la récupération des tâches du volontaire' };
+      }
+    }
+  },
+
+  // Assigner une tâche à un volontaire
+  assignTask: async (volunteerId: string, taskId: string) => {
+    try {
+      const response = await api.post(`/volunteers/${volunteerId}/assign_task/`, { task_id: taskId });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de l\'assignation de la tâche' };
+      }
+    }
+  },
+
+  // Mettre à jour le statut d'un volontaire
+  updateVolunteerStatus: async (volunteerId: string, status: string) => {
+    try {
+      const response = await api.patch(`/volunteers/${volunteerId}/`, { status });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la mise à jour du statut du volontaire' };
+      }
+    }
+  },
+
+  // Mettre à jour la disponibilité d'un volontaire
+  updateVolunteerAvailability: async (volunteerId: string, available: boolean) => {
+    try {
+      const response = await api.patch(`/volunteers/${volunteerId}/`, { available });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la mise à jour de la disponibilité du volontaire' };
+      }
+    }
+  }
+};
+
+// Gestion des assignations de tâches aux volontaires
+export const volunteerTaskService = {
+  // Récupérer toutes les assignations
+  getVolunteerTasks: async () => {
+    try {
+      const response = await api.get('/volunteers/tasks/');
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la récupération des assignations' };
+      }
+    }
+  },
+
+  // Récupérer une assignation par ID
+  getVolunteerTask: async (id: string) => {
+    try {
+      const response = await api.get(`/volunteers/tasks/${id}/`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la récupération de l\'assignation' };
+      }
+    }
+  },
+
+  // Récupérer les assignations par tâche
+  getTaskAssignments: async (taskId: string) => {
+    try {
+      const response = await api.get(`/volunteers/tasks/by_task/?task_id=${taskId}`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la récupération des assignations par tâche' };
+      }
+    }
+  },
+
+  // Récupérer les assignations par volontaire
+  getVolunteerAssignments: async (volunteerId: string) => {
+    try {
+      const response = await api.get(`/volunteers/tasks/by_volunteer/?volunteer_id=${volunteerId}`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la récupération des assignations par volontaire' };
+      }
+    }
+  },
+
+  // Mettre à jour la progression d'une assignation
+  updateProgress: async (volunteerTaskId: string, progress: number) => {
+    try {
+      const response = await api.post(`/volunteers/tasks/${volunteerTaskId}/update_progress/`, { progress });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors de la mise à jour de la progression' };
+      }
+    }
+  },
+
+  // Marquer une assignation comme terminée
+  completeTask: async (volunteerTaskId: string, result: any = null) => {
+    try {
+      const response = await api.post(`/volunteers/tasks/${volunteerTaskId}/complete/`, { result });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors du marquage de l\'assignation comme terminée' };
+      }
+    }
+  },
+
+  // Marquer une assignation comme échouée
+  failTask: async (volunteerTaskId: string, error: string) => {
+    try {
+      const response = await api.post(`/volunteers/tasks/${volunteerTaskId}/fail/`, { error });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        throw error.response.data;
+      } else {
+        throw { error: 'Une erreur est survenue lors du marquage de l\'assignation comme échouée' };
+      }
+    }
+  }
+};
+
 export default api;
