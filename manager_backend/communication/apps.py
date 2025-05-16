@@ -625,8 +625,8 @@ class CommunicationConfig(AppConfig):
             os.makedirs(manager_app_path)
             print(f"[INFO] Dossier {manager_app_path} créé.")
 
-        # Vérifier si les informations du manager existent
-        self.check_manager_info()
+        # L'enregistrement automatique est désactivé, utilisez l'API REST /managers/register/ à la place
+        print("[INFO] L'enregistrement automatique est désactivé. Utilisez l'API REST /managers/register/ pour enregistrer un manager.")
 
         # Initialiser le gestionnaire Redis
         try:

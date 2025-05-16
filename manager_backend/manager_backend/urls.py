@@ -22,4 +22,5 @@ urlpatterns = [
     path('workflows/', include('workflows.urls')),
     path('tasks/', include('tasks.urls')),
     path('volunteers/', include('volunteers.urls')),
+    path('managers/', include('managers.urls')),
 ]

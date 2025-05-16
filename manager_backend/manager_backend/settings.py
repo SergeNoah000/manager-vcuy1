@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'tasks',
     'volunteers',
     'communication',  # Module de communication réactivé
+    'managers',  # Module de gestion des managers
 ]
 
 MIDDLEWARE = [
@@ -173,7 +174,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 MANAGER_HOST = 'http://192.168.1.1'  # Change this to your actual host
 
 # --- REDIS CONFIG ---
-REDIS_HOST = '192.168.1.105'
+REDIS_HOST = 'localhost'
 REDIS_PORT = 6380
 REDIS_DB = 0
 REDIS_CHANNELS = []
