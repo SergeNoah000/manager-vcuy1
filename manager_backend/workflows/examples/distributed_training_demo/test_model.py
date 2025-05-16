@@ -5,7 +5,8 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 
 class SimpleNet(nn.Module):
-    def __init__(self): super().__init__()
+    def __init__(self): 
+        super().__init__()
         self.fc = nn.Sequential(
             nn.Flatten(),
             nn.Linear(32*32*3, 128), nn.ReLU(),
@@ -18,7 +19,7 @@ model.load_state_dict(torch.load("outputs/merged_model.pt"))
 model.eval()
 
 test = CIFAR10('./data', train=False, transform=transforms.ToTensor())
-loader = DataLoader(test, batch_size=32)
+loader = DataLoader(test, batch_size=32, num_workers=2)
 
 acc = 0
 for X, y in loader:

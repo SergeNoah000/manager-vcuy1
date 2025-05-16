@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+<<<<<<< HEAD
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
@@ -17,5 +18,24 @@
   "devDependencies": {
     "autoprefixer": "^10.4.7",
     "postcss": "^8.4.14"
+=======
+    "axios": "^1.9.0",
+    "bcryptjs": "^3.0.2",
+    "framer-motion": "^12.10.5",
+    "next": "15.3.2",
+    "next-auth": "^4.24.11",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-icons": "^5.5.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+>>>>>>> 4e2c22fd94ee4b995959d73c57ad4ecdb643bd1a
   }
 }
