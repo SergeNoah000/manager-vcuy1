@@ -284,6 +284,57 @@ export default function WorkflowsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
+      {/* Barre de navigation supérieure */}
+      <div className="bg-gradient-to-r from-blue-800 to-indigo-900 rounded-lg shadow-md mb-6 overflow-hidden">
+        <div className="px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Link 
+                href="/workflows" 
+                className="inline-flex items-center px-4 py-2 bg-blue-700 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors duration-200"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+                Workflows
+              </Link>
+              
+              <Link 
+                href="/tasks" 
+                className="inline-flex items-center px-4 py-2 bg-indigo-800 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors duration-200"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </Link>
+              
+              <Link 
+                href="/volunteers" 
+                className="inline-flex items-center px-4 py-2 bg-indigo-800 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors duration-200"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                Volontaires
+              </Link>
+            </div>
+            
+            <div className="flex items-center space-x-3 mt-2 sm:mt-0">
+              <span className="text-white text-sm hidden md:inline-block">Plateforme de gestion de workflows distribués</span>
+              <Link
+                href="/profile"
+                className="inline-flex items-center px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white text-sm font-medium rounded-full transition-colors duration-200"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                Profil
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Header avec animation et dégradé */}
       <div className="relative bg-gradient-to-r from-blue-700 to-indigo-800 rounded-xl shadow-lg mb-8 overflow-hidden">
         <div className="absolute inset-0 bg-grid-white/10 opacity-10"></div>
@@ -416,360 +467,404 @@ export default function WorkflowsPage() {
       {error && (
         <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-md shadow-sm animate-fadeIn">
           <div className="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="font-medium">{error}</span>
-          </div>
-        </div>
-      )}
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+           </svg>
+           <span className="font-medium">{error}</span>
+         </div>
+       </div>
+     )}
 
-      {/* État de chargement amélioré */}
-      {loading ? (
-        <div className="flex flex-col justify-center items-center h-64 bg-white rounded-xl shadow-md p-8">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
-          <p className="text-gray-600 text-lg animate-pulse">Chargement de vos workflows...</p>
-          <p className="text-gray-500 text-sm mt-2">Merci de patienter un instant</p>
-        </div>
-      ) : (
-        <>
-          {workflows.length === 0 ? (
-            <div className="bg-white rounded-xl p-12 text-center shadow-md border border-gray-100">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20 mx-auto text-gray-400 mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              <h2 className="text-2xl font-medium text-gray-700 mb-3">Aucun workflow trouvé</h2>
-              <p className="text-gray-500 max-w-md mx-auto mb-6">
-                Vous n'avez pas encore créé de workflow. Les workflows vous permettent d'automatiser vos processus métier et d'améliorer votre productivité.
-              </p>
-              <Link
-                href="/workflows/create"
-                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-md text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                Créer votre premier workflow
-              </Link>
-            </div>
-          ) : (
-            <>
-              {/* Nombre de résultats */}
-              <div className="mb-4 text-sm text-gray-500">
-                {filteredWorkflows.length} workflows trouvés
-                {filterStatus && <span> avec le statut {filterStatus}</span>}
-                {searchTerm && <span> contenant "{searchTerm}"</span>}
-              </div>
-              
-              {/* Liste de workflows en cards pour les petits écrans */}
-              <div className="grid grid-cols-1 gap-4 md:hidden">
-                {filteredWorkflows.map((workflow) => {
-                  const statusInfo = getStatusInfo(workflow.status);
-                  const typeInfo = getWorkflowTypeInfo(workflow.workflow_type);
-                  
-                  return (
-                    <div key={workflow.id} className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-shadow duration-200">
-                      <div className="p-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <Link 
-                              href={`/workflows/${workflow.id}`} 
-                              className="text-lg font-medium text-blue-600 hover:text-blue-800 hover:underline mb-1 block"
-                            >
-                              {workflow.name}
-                            </Link>
-                            <p className="text-sm text-gray-500 mb-2">{workflow.description.substring(0, 100)}{workflow.description.length > 100 ? '...' : ''}</p>
-                            
-                            <div className="flex flex-wrap gap-2 mt-3">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.bgColor} ${statusInfo.textColor}`}>
-                                {statusInfo.icon}
-                                {statusInfo.label}
-                              </span>
-                              
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${typeInfo.bgColor} ${typeInfo.textColor}`}>
-                                {typeInfo.icon}
-                                {workflow.workflow_type}
-                              </span>
-                              
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                {formatDate(workflow.created_at)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex justify-end mt-4 pt-3 border-t border-gray-100">
-                          <Link 
-                            href={`/workflows/${workflow.id}`} 
-                            className="text-indigo-600 hover:text-indigo-900 text-sm font-medium mr-4 flex items-center"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            Détails
-                          </Link>
-                          <Link 
-                            href={`/workflows/${workflow.id}/edit`} 
-                            className="text-yellow-600 hover:text-yellow-900 text-sm font-medium mr-4 flex items-center"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                            Modifier
-                          </Link>
-                          <button
-                            onClick={() => {
-                              if (confirm('Êtes-vous sûr de vouloir supprimer ce workflow?')) {
-                                // Implémenter la suppression
-                              }
-                            }}
-                            className="text-red-600 hover:text-red-900 text-sm font-medium flex items-center"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                            Supprimer
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              
-              {/* Tableau pour les écrans moyens et grands */}
-              <div className="hidden md:block">
-                <div className="bg-white shadow-md rounded-xl overflow-hidden border border-gray-200">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th 
-                            scope="col" 
-                            className="group px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                            onClick={() => {
-                              if (sortBy === 'name') {
-                                setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-                              } else {
-                                setSortBy('name');
-                                setSortDirection('asc');
-                              }
-                            }}
-                          >
-                            <div className="flex items-center">
-                              Nom
-                              {sortBy === 'name' && (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  {sortDirection === 'asc' ? (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                                  ) : (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                  )}
-                                </svg>
-                              )}
-                            </div>
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Type
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Statut
-                          </th>
-                          <th 
-                            scope="col" 
-                            className="group px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                            onClick={() => {
-                              if (sortBy === 'created_at') {
-                                setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-                              } else {
-                                setSortBy('created_at');
-                                setSortDirection('desc');
-                              }
-                            }}
-                          >
-                            <div className="flex items-center">
-                              Date de création
-                              {sortBy === 'created_at' && (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  {sortDirection === 'asc' ? (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                                  ) : (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                  )}
-                                </svg>
-                              )}
-                            </div>
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredWorkflows.map((workflow) => {
-                          const statusInfo = getStatusInfo(workflow.status);
-                          const typeInfo = getWorkflowTypeInfo(workflow.workflow_type);
-                          
-                          return (
-                            <tr key={workflow.id} className="hover:bg-gray-50 transition-colors duration-150">
-                              <td className="px-6 py-4">
-                                <Link 
-                                  href={`/workflows/${workflow.id}`} 
-                                  className="text-blue-600 hover:text-blue-800 font-medium hover:underline block"
-                                >
-                                  {workflow.name}
-                                </Link>
-                                <p className="text-sm text-gray-500 mt-1 line-clamp-2">{workflow.description}</p>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex flex-col">
-                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${typeInfo.bgColor} ${typeInfo.textColor}`}>
-                                    {typeInfo.icon}
-                                    {workflow.workflow_type}
-                                  </span>
-                                  <span className="text-xs text-gray-500 mt-1">{typeInfo.description}</span>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.bgColor} ${statusInfo.textColor}`}>
-                                  {statusInfo.icon}
-                                  {statusInfo.label}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <div className="flex items-center">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                  </svg>
-                                  {formatDate(workflow.created_at)}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div className="flex space-x-3">
-                                  <Link 
-                                    href={`/workflows/${workflow.id}`} 
-                                    className="text-indigo-600 hover:text-indigo-900 hover:underline flex items-center"
-                                  >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                    </svg>
-                                    Détails
-                                  </Link>
-                                  <Link 
-                                    href={`/workflows/${workflow.id}/edit`} 
-                                    className="text-yellow-600 hover:text-yellow-900 hover:underline flex items-center"
-                                  >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                    Modifier
-                                  </Link>
-                                  <button
-                                    onClick={() => {
-                                      if (confirm('Êtes-vous sûr de vouloir supprimer ce workflow?')) {
-                                        // Implémenter la suppression
-                                      }
-                                    }}
-                                    className="text-red-600 hover:text-red-900 hover:underline flex items-center"
-                                  >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                    Supprimer
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Pagination */}
-              {filteredWorkflows.length > 0 && (
-                <div className="flex justify-between items-center mt-6 bg-white p-4 rounded-lg shadow-sm">
-                  <div className="text-sm text-gray-500">
-                    Affichage de <span className="font-medium">{filteredWorkflows.length}</span> workflows
-                  </div>
-                  <div className="flex space-x-2">
-                    <button className="px-3 py-1 border border-gray-300 rounded-md text-sm text-gray-500 hover:bg-gray-50 disabled:opacity-50" disabled>
-                      Précédent
-                    </button>
-                    <button className="px-3 py-1 border border-gray-300 rounded-md text-sm bg-blue-50 text-blue-600 font-medium border-blue-200">
-                      1
-                    </button>
-                    <button className="px-3 py-1 border border-gray-300 rounded-md text-sm text-gray-500 hover:bg-gray-50 disabled:opacity-50" disabled>
-                      Suivant
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </>
-      )}
-      
-      {/* Section informative au bas de la page */}
-      <div className="mt-12 bg-gray-50 rounded-xl p-6 border border-gray-200">
-        <h2 className="text-lg font-medium text-gray-800 mb-4">À propos des Workflows</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-500 text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-medium text-gray-900">Automatisation</h3>
-              <p className="mt-2 text-sm text-gray-500">
-                Automatisez vos processus récurrents pour gagner du temps et réduire les erreurs manuelles.
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-500 text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-medium text-gray-900">Suivi en temps réel</h3>
-              <p className="mt-2 text-sm text-gray-500">
-                Surveillez l'état de vos workflows et recevez des notifications sur leur progression.
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-500 text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-                </svg>
-              </div>
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-medium text-gray-900">Intégration</h3>
-              <p className="mt-2 text-sm text-gray-500">
-                Connectez vos workflows à d'autres systèmes et applications pour une expérience fluide.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+     {/* État de chargement amélioré */}
+     {loading ? (
+       <div className="flex flex-col justify-center items-center h-64 bg-white rounded-xl shadow-md p-8">
+         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
+         <p className="text-gray-600 text-lg animate-pulse">Chargement de vos workflows...</p>
+         <p className="text-gray-500 text-sm mt-2">Merci de patienter un instant</p>
+       </div>
+     ) : (
+       <>
+         {workflows.length === 0 ? (
+           <div className="bg-white rounded-xl p-12 text-center shadow-md border border-gray-100">
+             <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20 mx-auto text-gray-400 mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+             </svg>
+             <h2 className="text-2xl font-medium text-gray-700 mb-3">Aucun workflow trouvé</h2>
+             <p className="text-gray-500 max-w-md mx-auto mb-6">
+               Vous n'avez pas encore créé de workflow. Les workflows vous permettent d'automatiser vos processus métier et d'améliorer votre productivité.
+             </p>
+             <Link
+               href="/workflows/create"
+               className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-md text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+             >
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+               </svg>
+               Créer votre premier workflow
+             </Link>
+           </div>
+         ) : (
+           <>
+             {/* Nombre de résultats */}
+             <div className="mb-4 text-sm text-gray-500">
+               {filteredWorkflows.length} workflows trouvés
+               {filterStatus && <span> avec le statut {filterStatus}</span>}
+               {searchTerm && <span> contenant "{searchTerm}"</span>}
+             </div>
+             
+             {/* Liste de workflows en cards pour les petits écrans */}
+             <div className="grid grid-cols-1 gap-4 md:hidden">
+               {filteredWorkflows.map((workflow) => {
+                 const statusInfo = getStatusInfo(workflow.status);
+                 const typeInfo = getWorkflowTypeInfo(workflow.workflow_type);
+                 
+                 return (
+                   <div key={workflow.id} className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-shadow duration-200">
+                     <div className="p-4">
+                       <div className="flex justify-between items-start">
+                         <div>
+                           <Link 
+                             href={`/workflows/${workflow.id}`} 
+                             className="text-lg font-medium text-blue-600 hover:text-blue-800 hover:underline mb-1 block"
+                           >
+                             {workflow.name}
+                           </Link>
+                           <p className="text-sm text-gray-500 mb-2">{workflow.description.substring(0, 100)}{workflow.description.length > 100 ? '...' : ''}</p>
+                           
+                           <div className="flex flex-wrap gap-2 mt-3">
+                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.bgColor} ${statusInfo.textColor}`}>
+                               {statusInfo.icon}
+                               {statusInfo.label}
+                             </span>
+                             
+                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${typeInfo.bgColor} ${typeInfo.textColor}`}>
+                               {typeInfo.icon}
+                               {workflow.workflow_type}
+                             </span>
+                             
+                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                               </svg>
+                               {formatDate(workflow.created_at)}
+                             </span>
+                           </div>
+                         </div>
+                       </div>
+                       
+                       <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-gray-100">
+                         <Link 
+                           href={`/workflows/${workflow.id}`} 
+                           className="text-indigo-600 hover:text-indigo-900 text-sm font-medium flex items-center"
+                         >
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                           </svg>
+                           Détails
+                         </Link>
+                         
+                         <Link 
+                           href={`/workflows/${workflow.id}/tasks`} 
+                           className="text-emerald-600 hover:text-emerald-800 text-sm font-medium flex items-center"
+                         >
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                           </svg>
+                           Tâches
+                         </Link>
+                         
+                         <Link 
+                           href={`/workflows/${workflow.id}/volunteers`} 
+                           className="text-purple-600 hover:text-purple-800 text-sm font-medium flex items-center"
+                         >
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                           </svg>
+                           Volontaires
+                         </Link>
+                         
+                         <Link 
+                           href={`/workflows/${workflow.id}/edit`} 
+                           className="text-yellow-600 hover:text-yellow-800 text-sm font-medium flex items-center"
+                         >
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                           </svg>
+                           Modifier
+                         </Link>
+                         
+                         <button
+                           onClick={() => {
+                             if (confirm('Êtes-vous sûr de vouloir supprimer ce workflow?')) {
+                               // Implémenter la suppression
+                             }
+                           }}
+                           className="text-red-600 hover:text-red-800 text-sm font-medium flex items-center"
+                         >
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                           </svg>
+                           Supprimer
+                         </button>
+                       </div>
+                     </div>
+                   </div>
+                 );
+               })}
+             </div>
+             
+             {/* Tableau pour les écrans moyens et grands */}
+             <div className="hidden md:block">
+               <div className="bg-white shadow-md rounded-xl overflow-hidden border border-gray-200">
+                 <div className="overflow-x-auto">
+                   <table className="min-w-full divide-y divide-gray-200">
+                     <thead className="bg-gray-50">
+                       <tr>
+                         <th 
+                           scope="col" 
+                           className="group px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                           onClick={() => {
+                             if (sortBy === 'name') {
+                               setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                             } else {
+                               setSortBy('name');
+                               setSortDirection('asc');
+                             }
+                           }}
+                         >
+                           <div className="flex items-center">
+                             Nom
+                             {sortBy === 'name' && (
+                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                 {sortDirection === 'asc' ? (
+                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                 ) : (
+                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                 )}
+                               </svg>
+                             )}
+                           </div>
+                         </th>
+                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                           Type
+                         </th>
+                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                           Statut
+                         </th>
+                         <th 
+                           scope="col" 
+                           className="group px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                           onClick={() => {
+                             if (sortBy === 'created_at') {
+                               setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                             } else {
+                               setSortBy('created_at');
+                               setSortDirection('desc');
+                             }
+                           }}
+                         >
+                           <div className="flex items-center">
+                             Date de création
+                             {sortBy === 'created_at' && (
+                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                 {sortDirection === 'asc' ? (
+                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                 ) : (
+                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                 )}
+                               </svg>
+                             )}
+                           </div>
+                         </th>
+                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                           Actions
+                         </th>
+                       </tr>
+                     </thead>
+                     <tbody className="bg-white divide-y divide-gray-200">
+                       {filteredWorkflows.map((workflow) => {
+                         const statusInfo = getStatusInfo(workflow.status);
+                         const typeInfo = getWorkflowTypeInfo(workflow.workflow_type);
+                         
+                         return (
+                           <tr key={workflow.id} className="hover:bg-gray-50 transition-colors duration-150">
+                             <td className="px-6 py-4">
+                               <Link 
+                                 href={`/workflows/${workflow.id}`} 
+                                 className="text-blue-600 hover:text-blue-800 font-medium hover:underline block"
+                               >
+                                 {workflow.name}
+                               </Link>
+                               <p className="text-sm text-gray-500 mt-1 line-clamp-2">{workflow.description}</p>
+                             </td>
+                             <td className="px-6 py-4 whitespace-nowrap">
+                               <div className="flex flex-col">
+                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${typeInfo.bgColor} ${typeInfo.textColor}`}>
+                                   {typeInfo.icon}
+                                   {workflow.workflow_type}
+                                 </span>
+                                 <span className="text-xs text-gray-500 mt-1">{typeInfo.description}</span>
+                               </div>
+                             </td>
+                             <td className="px-6 py-4 whitespace-nowrap">
+                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.bgColor} ${statusInfo.textColor}`}>
+                                 {statusInfo.icon}
+                                 {statusInfo.label}
+                               </span>
+                             </td>
+                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                               <div className="flex items-center">
+                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                 </svg>
+                                 {formatDate(workflow.created_at)}
+                               </div>
+                             </td>
+                             <td className="px-6 py-4 whitespace-nowrap">
+                               <div className="flex flex-wrap gap-2">
+                                 <Link 
+                                   href={`/workflows/${workflow.id}`} 
+                                   className="inline-flex items-center px-2.5 py-1.5 bg-indigo-50 border border-indigo-200 rounded-md text-xs font-medium text-indigo-600 hover:bg-indigo-100 transition-colors duration-200"
+                                 >
+                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                   </svg>
+                                   Détails
+                                 </Link>
+                                 
+                                 <Link 
+                                   href={`/workflows/${workflow.id}/tasks`} 
+                                   className="inline-flex items-center px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 rounded-md text-xs font-medium text-emerald-600 hover:bg-emerald-100 transition-colors duration-200"
+                                 >
+                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                   </svg>
+                                   Tâches
+                                 </Link>
+                                 
+                                 <Link 
+                                   href={`/workflows/${workflow.id}/volunteers`} 
+                                   className="inline-flex items-center px-2.5 py-1.5 bg-purple-50 border border-purple-200 rounded-md text-xs font-medium text-purple-600 hover:bg-purple-100 transition-colors duration-200"
+                                 >
+                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                   </svg>
+                                   Volontaires
+                                 </Link>
+                                 
+                                 <Link 
+                                   href={`/workflows/${workflow.id}/edit`} 
+                                   className="inline-flex items-center px-2.5 py-1.5 bg-yellow-50 border border-yellow-200 rounded-md text-xs font-medium text-yellow-700 hover:bg-yellow-100 transition-colors duration-200"
+                                 >
+                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                   </svg>
+                                   Modifier
+                                 </Link>
+                                 
+                                 <button
+                                   onClick={() => {
+                                     if (confirm('Êtes-vous sûr de vouloir supprimer ce workflow?')) {
+                                       // Implémenter la suppression
+                                     }
+                                   }}
+                                   className="inline-flex items-center px-2.5 py-1.5 bg-red-50 border border-red-200 rounded-md text-xs font-medium text-red-600 hover:bg-red-100 transition-colors duration-200"
+                                 >
+                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                   </svg>
+                                   Supprimer
+                                 </button>
+                               </div>
+                             </td>
+                           </tr>
+                         );
+                       })}
+                     </tbody>
+                   </table>
+                 </div>
+               </div>
+             </div>
+             
+             {/* Pagination */}
+             {filteredWorkflows.length > 0 && (
+               <div className="flex justify-between items-center mt-6 bg-white p-4 rounded-lg shadow-sm">
+                 <div className="text-sm text-gray-500">
+                   Affichage de <span className="font-medium">{filteredWorkflows.length}</span> workflows
+                 </div>
+                 <div className="flex space-x-2">
+                   <button className="px-3 py-1 border border-gray-300 rounded-md text-sm text-gray-500 hover:bg-gray-50 disabled:opacity-50" disabled>
+                     Précédent
+                   </button>
+                   <button className="px-3 py-1 border border-gray-300 rounded-md text-sm bg-blue-50 text-blue-600 font-medium border-blue-200">
+                     1
+                   </button>
+                   <button className="px-3 py-1 border border-gray-300 rounded-md text-sm text-gray-500 hover:bg-gray-50 disabled:opacity-50" disabled>
+                     Suivant
+                   </button>
+                 </div>
+               </div>
+             )}
+           </>
+         )}
+       </>
+     )}
+     
+     {/* Section informative au bas de la page avec fond plus contrasté */}
+     <div className="mt-12 bg-slate-50 rounded-xl p-6 border border-slate-200 shadow-sm">
+       <h2 className="text-lg font-medium text-slate-800 mb-4">À propos des Workflows</h2>
+       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+         <div className="flex">
+           <div className="flex-shrink-0">
+             <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-600 text-white">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+               </svg>
+             </div>
+           </div>
+           <div className="ml-4">
+             <h3 className="text-lg font-medium text-slate-900">Automatisation</h3>
+             <p className="mt-2 text-sm text-slate-600">
+               Automatisez vos processus récurrents pour gagner du temps et réduire les erreurs manuelles.
+             </p>
+           </div>
+         </div>
+         
+         <div className="flex">
+           <div className="flex-shrink-0">
+             <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-600 text-white">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+               </svg>
+             </div>
+           </div>
+           <div className="ml-4">
+             <h3 className="text-lg font-medium text-slate-900">Suivi en temps réel</h3>
+             <p className="mt-2 text-sm text-slate-600">
+               Surveillez l'état de vos workflows et recevez des notifications sur leur progression.
+             </p>
+           </div>
+         </div>
+         
+         <div className="flex">
+           <div className="flex-shrink-0">
+             <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-600 text-white">
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+               </svg>
+             </div>
+           </div>
+           <div className="ml-4">
+             <h3 className="text-lg font-medium text-slate-900">Intégration</h3>
+             <p className="mt-2 text-sm text-slate-600">
+               Connectez vos workflows à d'autres systèmes et applications pour une expérience fluide.
+             </p>
+           </div>
+         </div>
+       </div>
+     </div>
+   </div>
+ );
 }
