@@ -1,3 +1,6 @@
+#manager_backend/workflows/examples/distributed_training_demo/split_dataset.py
+
+
 import torch
 from torchvision.datasets import CIFAR10
 from torchvision import transforms

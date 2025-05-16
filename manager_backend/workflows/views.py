@@ -49,11 +49,14 @@ class WorkflowViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]  # Allow any user to access this view
 
 
+
+# Ajoutez cette importation en haut du fichier
+from workflows.split_workflow_ml import split_workflow
+
+
 @csrf_exempt
 def submit_workflow_view(request, workflow_id):
-    """
-    View to submit a workflow for processing.
-    """
+    """View to submit a workflow for processing."""
     try:
         workflow = get_object_or_404(Workflow, id=workflow_id)
         # Check if the workflow is in a valid state for submission
@@ -85,38 +88,77 @@ def submit_workflow_view(request, workflow_id):
         request_id = str(uuid.uuid4())
         data["request_id"] = request_id
 
+        # Tentative de publication Redis (optionnelle)
         try:
-            # Tentative de connexion à Redis (qui échouera probablement)
             pubsub_manager = get_redis_manager()
-            # Convertir les données en JSON pour Redis
             json_data = json.dumps(data)
             pubsub_manager.publish("WORKFLOW_SUBMISSION", json_data)
             print(f"[INFO] Workflow submission message published with request_id: {request_id}")
         except Exception as e:
-            # Capturer l'erreur Redis et la logger, mais continuer l'exécution
-            print(f"[WARNING] Redis connection failed: {e}")
-            # En développement, nous continuons comme si Redis avait fonctionné
-
+            print(f"[WARNING] Redis communication failed: {e}")
+        
+        # Enregistrer le request_id (optionnel)
         try:
-            # Enregistrer request_id dans un fichier, indépendamment de Redis
             registration_request_id_path = os.path.join(settings.BASE_DIR, ".manager_app", "registration_request_id.json")
             with open(registration_request_id_path, "w") as f:
                 json.dump({"request_id": request_id}, f)
             print(f"[INFO] request_id saved in {registration_request_id_path}")
         except Exception as e:
-            # Capturer l'erreur de fichier et la logger
             print(f"[WARNING] Failed to save request_id to file: {e}")
 
         # Update the workflow status to SUBMITTED
         workflow.status = WorkflowStatus.SUBMITTED
         workflow.submitted_at = timezone.now()
-
-        # Save the workflow instance
         workflow.save()
+        
+        # TOUJOURS déclencher le processus de découpage et conteneurisation
+        print(f"[INFO] Triggering workflow splitting for workflow {workflow.id}")
+        try:
+            # Découper le workflow en tâches
+            tasks = split_workflow(workflow.id)
+            print(f"[INFO] Workflow split successfully into {len(tasks)} tasks")
+            
+            # Vérifier si des tâches ont été créées
+            if tasks and len(tasks) > 0:
+                # Construire la liste des tâches pour la réponse
+                task_details = []
+                for task in tasks:
+                    task_info = {
+                        "id": str(task.id),
+                        "name": task.name,
+                        "status": task.status,
+                    }
+                    if hasattr(task, 'docker_info') and task.docker_info:
+                        task_info["docker_image"] = task.docker_info.get("full_name", "")
+                    task_details.append(task_info)
+                
+                return JsonResponse({
+                    'message': 'Workflow submitted and split successfully',
+                    'task_count': len(tasks),
+                    'tasks': task_details
+                }, status=200)
+            else:
+                return JsonResponse({
+                    'message': 'Workflow submitted but no tasks were created',
+                    'task_count': 0
+                }, status=200)
+                
+        except Exception as e:
+            print(f"[ERROR] Failed to split workflow: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            return JsonResponse({
+                'message': 'Workflow submitted but splitting failed',
+                'error': str(e)
+            }, status=200)
 
-        return JsonResponse({'message': 'Workflow submitted successfully (Note: Redis connection failed but workflow was updated).'}, status=200)
     except Workflow.DoesNotExist:
-        return JsonResponse({'error': 'Workflow not found.'}, status=404)
+        return JsonResponse({'error': 'Workflow not found'}, status=404)
+    except Exception as e:
+        print(f"[ERROR] Unexpected error in submit_workflow_view: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'error': f'Unexpected error: {str(e)}'}, status=500)
     
 class RegisterView(APIView):
     # TRÈS IMPORTANT: AllowAny est nécessaire pour permettre l'inscription!
