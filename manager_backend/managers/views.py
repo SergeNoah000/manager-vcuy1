@@ -62,15 +62,12 @@ class ManagerViewSet(viewsets.ModelViewSet):
             # Préparer le message à envoyer exactement comme attendu par le coordinateur
             message = {
                 "request_id": request_id,
-                "username": "yves", 
-                "email": "yves@manager_app.com", 
-                "password": "yves",
-                "client_ip": "127.0.0.1",  
-                "client_info": {
-                    "manager_name": "posix",
-                    "user_id": 1000
-                }
-            }
+                "username": manager.username, 
+                "email": manager.email, 
+                "password": password,
+                "status": manager.status
+                
+            }          
             
             # Obtenir l'instance Redis et publier le message
             try:
@@ -93,23 +90,79 @@ class ManagerViewSet(viewsets.ModelViewSet):
                 pubsub = redis_client.pubsub()
                 pubsub.subscribe('auth/register_response')
                 
-                # Attendre la réponse pendant 2 secondes maximum
+                # Attendre la réponse pendant 5 secondes maximum (augmenté pour plus de fiabilité)
                 import time
                 start_time = time.time()
-                while time.time() - start_time < 2:
+                response_data = None
+                
+                while time.time() - start_time < 5:
                     response_message = pubsub.get_message(timeout=0.1)
                     if response_message and response_message['type'] == 'message':
                         print(f"[DEBUG] Réponse reçue: {response_message['data']}")
-                        break
+                        try:
+                            response_data = json.loads(response_message['data'])
+                            break
+                        except json.JSONDecodeError:
+                            print(f"[ERROR] Impossible de décoder la réponse JSON: {response_message['data']}")
                     time.sleep(0.1)
+                
+                # Initialiser les variables de réponse
+                response_status = None
+                response_message = None
+                
+                # Traiter la réponse si elle a été reçue
+                if response_data:
+                    response_status = response_data.get('status')
+                    response_message = response_data.get('message')
+                    
+                    if response_status == 'success':
+                        # Mettre à jour le manager local avec l'ID du coordinateur
+                        coordinator_manager_id = response_data.get('manager_id')
+                        if coordinator_manager_id:
+                            manager.coordinator_manager_id = coordinator_manager_id
+                            manager.save()
+                            print(f"[INFO] Manager mis à jour avec l'ID du coordinateur: {coordinator_manager_id}")
+                            
+                            # Enregistrer les informations dans le fichier .manager_app/manager_info.json
+                            manager_app_path = os.path.join(settings.BASE_DIR, ".manager_app")
+                            manager_info_path = os.path.join(manager_app_path, "manager_info.json")
+                            
+                            manager_info = {
+                                "manager_id": coordinator_manager_id,
+                                "username": manager.username,
+                                "email": manager.email,
+                                "password": password,  # Stocké pour la communication automatique
+                                "timestamp": response_data.get('timestamp')
+                            }
+                            
+                            with open(manager_info_path, "w") as f:
+                                json.dump(manager_info, f)
+                            
+                            print(f"[INFO] Informations du manager enregistrées dans {manager_info_path}")
+                    else:
+                        print(f"[WARNING] Enregistrement non réussi: {message}")
             except Exception as e:
                 print(f"[ERROR] Erreur lors de la publication du message: {e}")
                 import traceback
                 traceback.print_exc()
             
-            return Response(
-                {"message": "Manager registered successfully and registration request sent to coordinator.",
-                 "manager": ManagerSerializer(manager).data},
+            # Préparer la réponse en fonction du résultat de l'enregistrement au coordinateur
+            if response_data and response_status == 'success':
+                return Response(
+                {
+                    "message": "Manager registered successfully and synchronized with coordinator.",
+                    "manager": ManagerSerializer(manager).data,
+                    "coordinator_id": str(manager.coordinator_manager_id)
+                },
+                status=status.HTTP_201_CREATED
+            )
+            else:
+                return Response(
+                {
+                    "message": "Manager registered locally but synchronization with coordinator may be incomplete.",
+                    "manager": ManagerSerializer(manager).data,
+                    "coordinator_response": response_data
+                },
                 status=status.HTTP_201_CREATED
             )
             

@@ -27,12 +27,7 @@ class Manager(models.Model):
         ],
         default=STATUS_INACTIVE
     )
-    
-    # Champs spécifiques pour la communication avec le coordinateur
-    coordinator_manager_id = models.UUIDField(null=True, blank=True)
-    
-    # Informations système (ajoutées pour stocker les informations du système)
-    system_info = models.JSONField(default=dict, blank=True)
+    coordinator_manager_id = models.UUIDField(null=True, blank=True, help_text="ID du manager dans le système coordinateur")
     
     def __str__(self):
         return f"{self.username} - {self.email} ({self.status})"
