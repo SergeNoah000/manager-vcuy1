@@ -4,6 +4,10 @@ import { useEffect, useState, JSX } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { workflowService } from '@/lib/api';
+import WorkflowCard from '@/components/WorkflowCard';
+import WorkflowStatusUpdater from '../../../components/WorkflowStatusUpdater';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Types
 interface Workflow {
@@ -34,7 +38,8 @@ interface Task {
 }
 
 export default function WorkflowDetailPage() {
-  const { id } = useParams();
+  const params = useParams();
+  const workflowId = params?.id as string;
   const router = useRouter();
   
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
@@ -42,6 +47,22 @@ export default function WorkflowDetailPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Fonction pour gérer les mises à jour de statut en temps réel
+  const handleStatusChange = (status: string, message?: string) => {
+    console.log(`Mise à jour du statut: ${status}, message: ${message}`);
+    
+    if (workflow) {
+      setWorkflow({
+        ...workflow,
+        status: status
+      });
+      
+      if (message) {
+        toast.info(message);
+      }
+    }
+  };
 
   // Données fictives pour les tests - à retirer en production
   const mockTasks: Task[] = [
@@ -55,13 +76,13 @@ export default function WorkflowDetailPage() {
     const fetchWorkflow = async () => {
       try {
         setLoading(true);
-        const data = await workflowService.getWorkflow(id as string);
+        const data = await workflowService.getWorkflow(workflowId as string);
         setWorkflow(data);
         
         // Charger les tâches de ce workflow (à implémenter dans votre API)
         // Commentez ces lignes et décommentez les vôtres une fois l'API prête
         setTasks(mockTasks);
-        // const tasksData = await workflowService.getWorkflowTasks(id as string);
+        // const tasksData = await workflowService.getWorkflowTasks(workflowId as string);
         // setTasks(tasksData);
         
         setError(null);
@@ -73,10 +94,10 @@ export default function WorkflowDetailPage() {
       }
     };
 
-    if (id) {
+    if (workflowId) {
       fetchWorkflow();
     }
-  }, [id]);
+  }, [workflowId]);
 
   // Soumettre le workflow pour traitement
   const handleSubmit = async () => {
@@ -266,6 +287,8 @@ export default function WorkflowDetailPage() {
   if (error) {
     return (
       <div className="container mx-auto px-4 py-8">
+        <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} />
+        {workflowId && <WorkflowStatusUpdater workflowId={workflowId} onStatusChange={handleStatusChange} />}
         <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-6 rounded-lg shadow-md mb-6">
           <div className="flex items-center">
             <svg className="h-6 w-6 text-red-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -725,6 +748,7 @@ export default function WorkflowDetailPage() {
           </Link>
         )}
       </div>
+      <ToastContainer position="top-right" autoClose={5000} />
     </div>
   );
 }

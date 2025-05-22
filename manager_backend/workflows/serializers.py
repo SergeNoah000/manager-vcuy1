@@ -66,7 +66,7 @@ class WorkflowSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'first_name', 'last_name')
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'password')
         read_only_fields = ('id',)
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -74,10 +74,10 @@ class RegisterSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ('username', 'email', 'password', 'password2')
+        fields = ('email', 'first_name', 'last_name', 'password', 'password2')
         extra_kwargs = {
             'password': {'write_only': True},
-            'email': {'required': True},
+            'email': {'required': True}
         }
     
     def validate_email(self, value):
@@ -88,13 +88,6 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Un utilisateur avec cet email existe déjà.")
         return value
     
-    def validate_username(self, value):
-        """
-        Valide que le nom d'utilisateur n'est pas déjà utilisé.
-        """
-        if value and User.objects.filter(username=value).exists():
-            raise serializers.ValidationError("Ce nom d'utilisateur est déjà utilisé.")
-        return value
     
     def validate(self, attrs):
         """

@@ -19,9 +19,23 @@ class VolunteerPreferenceType(models.TextChoices):
     HIGH_MEMORY = "HIGH_MEMORY", "Machines à haute mémoire"
     LOW_LATENCY = "LOW_LATENCY", "Faible latence"
 
+def get_default_workflow():
+    """Retourne l'ID du workflow par défaut ou None si aucun workflow n'existe."""
+    from workflows.models import Workflow
+    default_workflow = Workflow.objects.first()
+    if default_workflow:
+        return default_workflow.id
+    return None
+
 class Task(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    workflow = models.ForeignKey(Workflow, on_delete=models.CASCADE, related_name='tasks')
+    workflow = models.ForeignKey(
+        Workflow, 
+        on_delete=models.CASCADE, 
+        related_name='tasks',
+        null=True,  # Permettre les valeurs nulles pour faciliter les migrations
+        blank=True
+    )
 
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)

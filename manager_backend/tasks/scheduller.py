@@ -5,7 +5,7 @@ from django.utils import timezone
 from collections import defaultdict
 
 
-def assign_tasks_fcfs(workflow: Workflow, volunteers_data: list):
+def assign_tasks_fcfs(workflow: Workflow, volunteers_data: list) -> list(dict):
     """
     Assigne les tâches d'un workflow aux volontaires selon FCFS,
     tout en vérifiant la disponibilité des ressources de chaque volontaire.
@@ -97,13 +97,15 @@ def assign_tasks_fcfs(workflow: Workflow, volunteers_data: list):
     # Affichage des tâches non assignées
     unassigned = tasks.exclude(status=TaskStatus.ASSIGNED)
     if unassigned.exists():
-        print("\n⚠️  Tâches non assignées :")
+        logger.warning("\n⚠️  Tâches non assignées :")
         for t in unassigned:
-            print(f"  - {t.name} (ressources requises : {t.required_resources})")
+            logger.warning(f"  - {t.name} (ressources requises : {t.required_resources})")
     else:
-        print("\n✅ Toutes les tâches ont été assignées.")
+        logger.info("\n✅ Toutes les tâches ont été assignées.")
+    
+    return task_assignments
 
-def assign_workflow_to_volunteers(workflow_instance, volunteers):
+def assign_workflow_to_volunteers(workflow_instance: Workflow, volunteers: list)->list(dict):
     """
     Assigne un workflow à une liste de volontaires.
     """

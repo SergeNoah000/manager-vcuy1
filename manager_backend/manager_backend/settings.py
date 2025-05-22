@@ -49,7 +49,9 @@ INSTALLED_APPS = [
     'workflows',
     'tasks',
     'volunteers',
-    'communication',  # Module de communication réactivé
+    'websocket_service',
+    # 'communication', 
+    'redis_communication',
 ]
 
 MIDDLEWARE = [
@@ -192,7 +194,7 @@ MANAGER_HOST = 'http://192.168.1.1'  # Change this to your actual host
 # Si environnement de développement, utiliser localhost
 if DEBUG:
     REDIS_HOST = '127.0.0.1'  # localhost
-    REDIS_PORT = 6379  # port Redis standard
+    REDIS_PORT = 6380  # port Redis standard
 else:
     REDIS_HOST = '192.168.1.105'  # serveur de production
     REDIS_PORT = 6380

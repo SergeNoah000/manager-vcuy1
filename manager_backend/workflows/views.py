@@ -1,122 +1,182 @@
 # backend/workflows/views.py
-from django.utils import timezone  # Modifiez cette ligne
 import json
-import os
-import uuid
-
-from django.conf import settings
 from rest_framework import viewsets
-from communication.PubSub.get_redis_instance import get_redis_manager
-from .models import Workflow, WorkflowStatus  # Ajoutez WorkflowStatus ici
+from .models import Workflow, WorkflowStatus
 from .serializers import WorkflowSerializer
-from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticated as permissions
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets,  status
 from rest_framework.views import APIView
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
-from django.core.exceptions import ObjectDoesNotExist
-from .serializers import WorkflowSerializer, UserSerializer, RegisterSerializer
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.authtoken.models import Token
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from django.contrib.auth import get_user_model
-from .serializers import RegisterSerializer, UserSerializer
-import json
+from .serializers import WorkflowSerializer, RegisterSerializer
 import traceback
-
-
-from rest_framework import status
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.authtoken.models import Token
-from django.contrib.auth import authenticate
-from django.core.exceptions import ObjectDoesNotExist
-from rest_framework.permissions import AllowAny
-from django.contrib.auth import get_user_model
-from rest_framework.authtoken.views import ObtainAuthToken
-
-User = get_user_model()
 from django.views.decorators.csrf import csrf_exempt
+import logging
+from redis_communication.client import RedisClient
+
+
+logger = logging.getLogger(__name__)
+
+
 
 class WorkflowViewSet(viewsets.ModelViewSet):
     queryset = Workflow.objects.all().order_by('-created_at')
     serializer_class = WorkflowSerializer
-    permission_classes = [AllowAny]  # Allow any user to access this view
+    permission_classes = [AllowAny]
 
 
-@csrf_exempt
+@api_view(['POST'])
 def submit_workflow_view(request, workflow_id):
     """
     View to submit a workflow for processing.
     """
     try:
+        # Récupérer le workflow
         workflow = get_object_or_404(Workflow, id=workflow_id)
-        # Check if the workflow is in a valid state for submission
-        if workflow.status != WorkflowStatus.CREATED:
-            return JsonResponse({'error': 'Workflow is not in a valid state for submission.'}, status=400)
-
-        # Préparer les données pour Redis
-        data = {
-            # All workflow data
-            'workflow_id': str(workflow.id),
-            'workflow_name': workflow.name,
-            'workflow_description': workflow.description,
-            'workflow_status': workflow.status,
-            'created_at': workflow.created_at.isoformat() if hasattr(workflow.created_at, 'isoformat') else str(workflow.created_at),
-            'workflow_type': workflow.workflow_type,
-            'owner': {
-                'username': workflow.owner.username,
-                'email': workflow.owner.email
-            },
-            "priority": workflow.priority,
-            "estimated_resources": workflow.estimated_resources,
-            "max_execution_time": workflow.max_execution_time,
-            "input_data_size": workflow.input_data_size,
-            "retry_count": workflow.retry_count,
-            "submitted_at": timezone.now().isoformat(),
-        }
-
-        # Générer un request_id
-        request_id = str(uuid.uuid4())
-        data["request_id"] = request_id
-
-        try:
-            # Tentative de connexion à Redis (qui échouera probablement)
-            pubsub_manager = get_redis_manager()
-            # Convertir les données en JSON pour Redis
-            json_data = json.dumps(data)
-            pubsub_manager.publish("WORKFLOW_SUBMISSION", json_data)
-            print(f"[INFO] Workflow submission message published with request_id: {request_id}")
-        except Exception as e:
-            # Capturer l'erreur Redis et la logger, mais continuer l'exécution
-            print(f"[WARNING] Redis connection failed: {e}")
-            # En développement, nous continuons comme si Redis avait fonctionné
-
-        try:
-            # Enregistrer request_id dans un fichier, indépendamment de Redis
-            registration_request_id_path = os.path.join(settings.BASE_DIR, ".manager_app", "registration_request_id.json")
-            with open(registration_request_id_path, "w") as f:
-                json.dump({"request_id": request_id}, f)
-            print(f"[INFO] request_id saved in {registration_request_id_path}")
-        except Exception as e:
-            # Capturer l'erreur de fichier et la logger
-            print(f"[WARNING] Failed to save request_id to file: {e}")
-
-        # Update the workflow status to SUBMITTED
-        workflow.status = WorkflowStatus.SUBMITTED
-        workflow.submitted_at = timezone.now()
-
-        # Save the workflow instance
+        
+        # Notifier le début du processus de soumission
+        from websocket_service.client import notify_event
+        notify_event('workflow_status_change', {
+            'workflow_id': str(workflow_id),
+            'status': 'SUBMITTING',
+            'message': 'Soumission du workflow en cours...'
+        })
+        
+        # Utiliser le gestionnaire de workflow pour soumettre le workflow
+        from workflows.handlers import submit_workflow_handler
+        success, response = submit_workflow_handler(str(workflow_id))
+        logger.info(f"Submit workflow response: {response}")
+        
+        if not success:
+            # Notifier l'échec de la soumission
+            notify_event('workflow_status_change', {
+                'workflow_id': str(workflow_id),
+                'status': 'SUBMISSION_FAILED',
+                'message': f"Échec de la soumission: {response.get('message', 'Erreur inconnue')}"
+            })
+            return JsonResponse({'success': False, 'response': response}, status=400)
+            
+        # Soumission réussie, mettre à jour le statut et notifier
+        workflow.status = WorkflowStatus.SPLITTING
         workflow.save()
-
-        return JsonResponse({'message': 'Workflow submitted successfully (Note: Redis connection failed but workflow was updated).'}, status=200)
+        logger.info(f"Workflow {workflow_id} soumis avec succès")
+        
+        # Notifier la réussite de la soumission
+        notify_event('workflow_status_change', {
+            'workflow_id': str(workflow_id),
+            'status': 'SPLITTING',
+            'message': 'Soumission réussie, découpage en cours...'
+        })
+        
+        # Réponse initiale au client HTTP
+        response_data = {'success': True, 'message': 'Workflow soumis avec succès, traitement en cours'}
+        
+        # Lancer le découpage dans un thread séparé pour ne pas bloquer la réponse HTTP
+        def process_workflow_async():
+            try:
+                # Découpage du workflow
+                logger.info(f"Lancement du découpage")
+                from workflows.split_workflow import split_workflow
+                tasks = split_workflow(str(workflow_id), workflow.workflow_type)
+                logger.info(f"Tasks: {len(tasks) if tasks else 0} créées")
+                
+                # Notifier la fin du découpage
+                notify_event('workflow_status_change', {
+                    'workflow_id': str(workflow_id),
+                    'status': 'SPLIT_COMPLETED',
+                    'message': f'Découpage terminé, {len(tasks) if tasks else 0} tâches créées'
+                })
+                
+                # Mettre à jour le statut du workflow
+                if response.get('volunteers'):
+                    workflow.status = WorkflowStatus.ASSIGNING
+                    workflow.save()
+                    
+                    # Notifier le début de l'assignation
+                    notify_event('workflow_status_change', {
+                        'workflow_id': str(workflow_id),
+                        'status': 'ASSIGNING',
+                        'message': 'Attribution des tâches aux volontaires...'
+                    })
+                    
+                    logger.info(f"Lancement de l'assignment")
+                    from tasks.scheduller import assign_workflow_to_volunteers
+                    assign_workflow_to_volunteers(workflow, response.get('volunteers'))
+                    logger.info(f"Assignment effectué avec succès")
+                    
+                    # Notifier la fin de l'assignation
+                    notify_event('workflow_status_change', {
+                        'workflow_id': str(workflow_id),
+                        'status': 'ASSIGNED',
+                        'message': 'Tâches attribuées avec succès'
+                    })
+                else:
+                    logger.info(f"Volunteers non reçus, lancement de l'écoute sur le canal d'assignment")
+                    pubsub = RedisClient.get_instance()
+                    pubsub.subscribe('workflow/assignment')
+                    
+                    # Notifier l'attente de volontaires
+                    notify_event('workflow_status_change', {
+                        'workflow_id': str(workflow_id),
+                        'status': 'WAITING_VOLUNTEERS',
+                        'message': 'En attente de volontaires disponibles...'
+                    })
+                
+                # Lancer l'attribution des tâches
+                from tasks.scheduller import assign_tasks_fcfs
+                assign_tasks_fcfs(str(workflow_id))
+                
+                # Notifier la fin du processus complet
+                notify_event('workflow_status_change', {
+                    'workflow_id': str(workflow_id),
+                    'status': workflow.status,
+                    'message': 'Processus de soumission terminé'
+                })
+                
+            except Exception as e:
+                logger.error(f"Erreur lors du traitement asynchrone du workflow: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                
+                # Notifier l'erreur
+                notify_event('workflow_status_change', {
+                    'workflow_id': str(workflow_id),
+                    'status': 'ERROR',
+                    'message': f'Erreur lors du traitement: {str(e)}'
+                })
+        
+        # Démarrer le traitement asynchrone
+        import threading
+        thread = threading.Thread(target=process_workflow_async)
+        thread.daemon = True
+        thread.start()
+        
+        # Retourner immédiatement une réponse au client HTTP
+        return JsonResponse(response_data, status=200)
+            
     except Workflow.DoesNotExist:
+        logger.error(f"Workflow {workflow_id} non trouvé")
         return JsonResponse({'error': 'Workflow not found.'}, status=404)
+    except Exception as e:
+        import traceback
+        logger.error(f"Erreur inattendue lors de la soumission du workflow {workflow_id}: {e}")
+        logger.error(traceback.format_exc())
+        
+        # Notifier l'erreur via WebSocket
+        try:
+            from websocket_service.client import notify_event
+            notify_event('workflow_status_change', {
+                'workflow_id': str(workflow_id),
+                'status': 'ERROR',
+                'message': f'Erreur inattendue: {str(e)}'
+            })
+        except Exception:
+            pass  # Ne pas échouer si la notification échoue
+            
+        return JsonResponse({'error': f'Unexpected error: {str(e)}'}, status=500)
     
 class RegisterView(APIView):
     # TRÈS IMPORTANT: AllowAny est nécessaire pour permettre l'inscription!
@@ -124,16 +184,7 @@ class RegisterView(APIView):
     authentication_classes = []  # Pas d'authentification nécessaire pour s'inscrire
 
     def post(self, request):
-        # Log des données pour le débogage (sans exposer le mot de passe)
-        request_data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
-        if 'password' in request_data:
-            request_data['password'] = '********'
-        if 'password2' in request_data:
-            request_data['password2'] = '********'
-        
-        print(f"[DEBUG] Données reçues pour l'inscription: {request_data}")
-        print(f"[DEBUG] Type de request.data: {type(request.data)}")
-        
+
         try:
             # Si les données arrivent en tant que chaîne JSON, les parser
             if isinstance(request.data, str):
@@ -153,13 +204,14 @@ class RegisterView(APIView):
                     
                     # Création du token
                     token, created = Token.objects.get_or_create(user=user)
-                    print(f"[DEBUG] Token {'créé' if created else 'récupéré'}: {token.key}")
                     
                     # Construction de la réponse
                     response_data = {
                         "user": {
                             "id": str(user.id),
                             "username": user.username,
+                            "first_name": user.first_name,
+                            "last_name": user.last_name,
                             "email": user.email
                         },
                         "token": token.key
@@ -220,7 +272,9 @@ class LoginView(APIView):
                         'user': {
                             'id': str(user.id),
                             'email': user.email,
-                            'username': user.username
+                            'username': user.username,
+                            'first_name': user.first_name,
+                            'last_name': user.last_name
                         }
                     }, status=status.HTTP_200_OK)
                 else:

@@ -8,25 +8,12 @@
     "start": "next start"
   },
   "dependencies": {
-<<<<<<< HEAD
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "react-toastify": "^11.0.5",
     "socket.io-client": "^4.5.4",
     "tailwindcss": "^3.3.0"
-  },
-  "devDependencies": {
-    "autoprefixer": "^10.4.7",
-    "postcss": "^8.4.14"
-=======
-    "axios": "^1.9.0",
-    "bcryptjs": "^3.0.2",
-    "framer-motion": "^12.10.5",
-    "next": "15.3.2",
-    "next-auth": "^4.24.11",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-icons": "^5.5.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -34,8 +21,14 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.7",
+    "axios": "^1.9.0",
+    "bcryptjs": "^3.0.2",
+    "framer-motion": "^12.10.5",
+    "next-auth": "^4.24.11",
+    "postcss": "^8.4.14",
+    "react-icons": "^5.5.0",
     "tailwindcss": "^4",
     "typescript": "^5"
->>>>>>> 4e2c22fd94ee4b995959d73c57ad4ecdb643bd1a
   }
 }

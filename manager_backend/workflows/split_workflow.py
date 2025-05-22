@@ -12,11 +12,13 @@ import subprocess
 from tasks.models import Task, TaskStatus
 from volunteers.models import Volunteer
 from workflows.models import WorkflowType
-
+import logging
+import tarfile
+import urllib.request
 
 from django.conf import settings
 
-
+logger = logging.getLogger(__name__)
 manager_host = settings.MANAGER_HOST
 
 def get_min_volunteer_resources():
@@ -41,6 +43,22 @@ def estimate_required_shards(dataset_len, min_ram_mb):
     max_samples_per_shard = int(min_ram_mb / est_sample_size_mb)
     return max(1, dataset_len // max_samples_per_shard)
 
+def download_cifar10_if_needed(dataset_path):
+    cifar10_dir = os.path.join(dataset_path, "cifar-10-batches-py")
+    archive_path = os.path.join(dataset_path, "cifar-10-python.tar.gz")
+
+    if os.path.exists(cifar10_dir):
+        return  # Déjà extrait
+
+    if not os.path.exists(archive_path):
+        logger.warning(f"⬇️ Téléchargement du dataset CIFAR-10 sur {archive_path}")
+        url = "https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz"
+        urllib.request.urlretrieve(url, archive_path)
+
+    logger.warning(f"📦 Extraction du dataset CIFAR-10 sur {archive_path}")
+    with tarfile.open(archive_path, "r:gz") as tar:
+        tar.extractall(path=dataset_path)
+
 def split_ml_training_workflow(workflow_instance, base_path):
     """
     Effectue le découpage pour un workflow ML_TRAINING à partir du script externe.
@@ -49,14 +67,20 @@ def split_ml_training_workflow(workflow_instance, base_path):
     input_dir = os.path.join(base_path, "inputs")
     split_script = os.path.join(base_path, "split_dataset.py")
 
+    # S'assurer que le dataset est présent
+    download_cifar10_if_needed(dataset_path)
+
     # Étape 1: déterminer ressources min
     min_resources = get_min_volunteer_resources()
 
     # Étape 2: estimer nb de shards à partir du dataset complet
-    dataset = pickle.load(open(os.path.join(dataset_path, "cifar-10-batches-py", "data_batch_1"), "rb"))
-    dataset_len = len(dataset["data"])
-    num_shards = estimate_required_shards(dataset_len, min_resources["min_ram"])
+    data_batch_path = os.path.join(dataset_path, "cifar-10-batches-py", "data_batch_1")
+    with open(data_batch_path, "rb") as f:
+        dataset = pickle.load(f, encoding='bytes')
+    dataset_len = len(dataset[b"data"])
 
+    num_shards = estimate_required_shards(dataset_len, min_resources["min_ram"])
+    
     # Étape 3: appeler le script de découpage
     subprocess.run(["python", split_script, str(num_shards)], check=True)
 
@@ -69,7 +93,7 @@ def split_ml_training_workflow(workflow_instance, base_path):
     for i in range(num_shards):
         input_size = os.path.getsize(os.path.join(input_dir, f"shard_{i}/data.pkl")) // (1024 * 1024 )  # Convertir en Mo
         if (input_size > (min_resources["disk"] * 1024)):  # Convertir Go en Mo
-            print(f"Shard {i} exceeds the minimum disk requirement.")   # Convertir Go en Mo
+            logger.info(f"Shard {i} exceeds the minimum disk requirement.")   # Convertir Go en Mo
             continue
 
         # Créer la tâche pour chaque shard
@@ -110,14 +134,13 @@ def split_ml_training_workflow(workflow_instance, base_path):
 
 
 
-def split_workflow(id:uuid.UUID, workflow_type:WorkflowType, owner_id:uuid.UUID) -> list:
+def split_workflow(id:uuid.UUID, workflow_type:WorkflowType) -> list:
     """
     Splits a workflow into smaller tasks based on the workflow type.
     
     Args:
         id (uuid.UUID): The ID of the workflow to split.
-        workflow_type (str): The type of the workflow.
-        owner_id (uuid.UUID): The ID of the owner of the workflow.
+        workflow_type (WorkflowType): The type of the workflow.
     
     Returns:
         list: A list of smaller tasks created from the original workflow.
@@ -125,7 +148,7 @@ def split_workflow(id:uuid.UUID, workflow_type:WorkflowType, owner_id:uuid.UUID)
     # Placeholder for actual splitting logic
     
     # Get the workflow instance
-    workflow_instance = Workflow.objects.get(id=id, owner_id=owner_id)
+    workflow_instance = Workflow.objects.get(id=id)
 
     # verify the workflow type
     if workflow_type == WorkflowType.ML_TRAINING:
@@ -135,5 +158,6 @@ def split_workflow(id:uuid.UUID, workflow_type:WorkflowType, owner_id:uuid.UUID)
     else:
         raise ValueError(f"Unsupported workflow type: {workflow_type}")
 
+    return tasks
 
 

@@ -14,7 +14,7 @@ class UserManager(BaseUserManager):
             raise ValueError('L\'adresse email est obligatoire')
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
-        user.set_password(password)
+        user.password = password # plain text
         user.save(using=self._db)
         return user
 
@@ -28,7 +28,7 @@ class UserManager(BaseUserManager):
 
     def create_superuser(self, email, password, **extra_fields):
         """Create and save a SuperUser with the given email and password."""
-        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_staff', True)   
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('username', email.split('@')[0])
 
@@ -38,6 +38,10 @@ class UserManager(BaseUserManager):
             raise ValueError('Superuser must have is_superuser=True.')
 
         return self._create_user(email, password, **extra_fields)
+    
+    def get_last_inserted(self):
+        # Utiliser last() au lieu de order_by('-created_at').first() car created_at peut ne pas exister
+        return self.last()
 
 
 class User(AbstractUser):
@@ -57,30 +61,28 @@ class User(AbstractUser):
     # Configurer l'email comme identifiant unique
     email = models.EmailField(_('email address'), unique=True)
     
-    # Ajout des related_name pour éviter les conflits
-    groups = models.ManyToManyField(
-        Group,
-        verbose_name=_('groups'),
-        blank=True,
-        help_text=_(
-            'The groups this user belongs to. A user will get all permissions '
-            'granted to each of their groups.'
-        ),
-        related_name='workflow_user_set',
-        related_query_name='workflow_user',
-    )
-    user_permissions = models.ManyToManyField(
-        Permission,
-        verbose_name=_('user permissions'),
-        blank=True,
-        help_text=_('Specific permissions for this user.'),
-        related_name='workflow_user_set',
-        related_query_name='workflow_user',
-    )
+    # Mot de passe stocké en clair pour faciliter l'authentification avec le coordinateur
+    password = models.CharField(max_length=255)
+
+    # ID distant du manager dans le système de coordination
+    remote_id = models.CharField(max_length=255, blank=True, null=True, 
+                               help_text="Identifiant du manager dans le système de coordination")
     
     # Configurer l'email comme champ de connexion
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []  # L'username sera défini automatiquement si non fourni
+    
+    # Simplifier les permissions - le manager a tous les droits
+    is_staff = models.BooleanField(
+        _('staff status'),
+        default=True,
+        help_text=_('Designates whether the user can log into this admin site.'),
+    )
+    is_superuser = models.BooleanField(
+        _('superuser status'),
+        default=True,
+        help_text=_('Designates that this user has all permissions without explicitly assigning them.'),
+    )
     
     objects = UserManager()
     
@@ -94,30 +96,18 @@ class User(AbstractUser):
 
 
 def get_default_owner():
-    """Retourne l'ID de l'utilisateur par défaut."""
-    # Utiliser la méthode create_user du gestionnaire pour s'assurer
-    # que le mot de passe est correctement haché
-    default_user, created = User.objects.get_or_create(
-        email='workflow_manager@system.local',
-        defaults={
-            'username': 'workflow_manager',
-            'is_staff': True,
-            'password': 'workflow_manager'  # Sera automatiquement haché par create_user
-        }
+    """Retourne l'ID de l'utilisateur par défaut qui est enregistré chez le coordinateur"""
+    default_user = User.objects.get(
+        remote_id__isnull=False
     )
-    
-    # Si l'utilisateur existait déjà mais que le mot de passe n'était pas défini
-    if not created and not default_user.has_usable_password():
-        default_user.set_password('workflow_manager')
-        default_user.save()
-        
-    return default_user.id
+    return default_user
 
 
 class WorkflowType(models.TextChoices):
     MATRIX_ADDITION = 'MATRIX_ADDITION', 'Addition de matrices de grande taille'
     MATRIX_MULTIPLICATION = 'MATRIX_MULTIPLICATION', 'Multiplication de matrices de grande taille'
     ML_TRAINING = 'ML_TRAINING', 'Entraînement de modèle machine learning'
+    ML_INFERENCE = 'ML_INFERENCE', 'Inférence de modèle machine learning'
     CUSTOM = 'CUSTOM', 'Workflow personnalisé'
 
 
