@@ -1,14 +1,11 @@
 
 
-from datetime import timezone
 import uuid
 
 from workflows.models import WorkflowType, Workflow
 
 import os
 import pickle
-import json
-import subprocess
 from tasks.models import Task, TaskStatus
 from volunteers.models import Volunteer
 from workflows.models import WorkflowType
@@ -59,7 +56,7 @@ def download_cifar10_if_needed(dataset_path):
     with tarfile.open(archive_path, "r:gz") as tar:
         tar.extractall(path=dataset_path)
 
-def split_ml_training_workflow(workflow_instance, base_path):
+def split_ml_training_workflow(workflow_instance: Workflow, base_path, logger:logging.Logger):
     """
     Effectue le découpage pour un workflow ML_TRAINING à partir du script externe.
     """
@@ -82,11 +79,16 @@ def split_ml_training_workflow(workflow_instance, base_path):
     num_shards = estimate_required_shards(dataset_len, min_resources["min_ram"])
     
     # Étape 3: appeler le script de découpage
-    subprocess.run(["python", split_script, str(num_shards)], check=True)
+    from workflows.examples.distributed_training_demo.split_dataset import split_dataset
+    logger.warning(f"Appel de la fonction de decouppage de ml. Dataset path: {dataset_path}, Output path: {base_path}")
+    # Utiliser le chemin du dataset pour l'entrée et le chemin de base pour la sortie
+    split_dataset(num_shards, path=base_path, dataset_path=dataset_path, logger=logger)
+    logger.warning("Decouppage Ok.")
+    logger.warning("Creation de taches.")
 
     # Étape 4: création des tâches pour chaque shard
     docker_img = {
-        "name": "vcuy1/ml-training-v0",
+        "name": "training-test",
         "tag": "latest"
     }
     tasks = []
@@ -101,19 +103,14 @@ def split_ml_training_workflow(workflow_instance, base_path):
             workflow=workflow_instance,
             name=f"Train Shard {i}",
             description=f"Training on shard {i}",
-            command="python /app/train_on_shard.py",
+            command="python train_on_shard.py",
             parameters=[],
-            input_files=[{
-                "container_path": f"inputs/shard_{i}/data.pkl",
-                "host_path": os.path.join(input_dir, f"shard_{i}/data.pkl"),
-                "url": f"{manager_host}:1010/shard_{i}/data.pkl"
-            }],
-            output_files=[f"outputs/shard_{i}/model.pth"],
+            input_files=[f"shard_{i}/data.pkl"],
+            output_files=[f"shard_{i}/output/model.pth", f"shard_{i}/output/metrics.json"],
             status= TaskStatus.CREATED,
             parent_task=None,
             is_subtask=False,
             progress=0,
-            created_at=timezone.now(),
             start_time=None,
             docker_info=docker_img,
             required_resources={
@@ -134,7 +131,7 @@ def split_ml_training_workflow(workflow_instance, base_path):
 
 
 
-def split_workflow(id:uuid.UUID, workflow_type:WorkflowType) -> list:
+def split_workflow(id:uuid.UUID, workflow_type:WorkflowType, logger) -> list:
     """
     Splits a workflow into smaller tasks based on the workflow type.
     
@@ -153,11 +150,9 @@ def split_workflow(id:uuid.UUID, workflow_type:WorkflowType) -> list:
     # verify the workflow type
     if workflow_type == WorkflowType.ML_TRAINING:
         # Split the workflow using the ML training splitting logic
-        base_path = os.path.join(settings.BASE_DIR, "workflows", "examples", "distributed_training_demo")
-        tasks = split_ml_training_workflow(workflow_instance, base_path)
+        base_path = workflow_instance.executable_path
+        tasks = split_ml_training_workflow(workflow_instance, base_path, logger)
     else:
         raise ValueError(f"Unsupported workflow type: {workflow_type}")
 
     return tasks
-
-

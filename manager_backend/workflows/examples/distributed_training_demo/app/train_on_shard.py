@@ -2,9 +2,9 @@ import torch, torch.nn as nn, pickle, json, os
 from torchvision import transforms
 from torch.utils.data import TensorDataset, DataLoader
 
-import  warnings
+import warnings
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
-warnings.filterwarnings("ignore", category=torch._C._TensorBase.__class__)  # suppress all torch warnings
+warnings.filterwarnings("ignore")  # Simplified to ignore all warnings
 
 class SimpleNet(nn.Module):
     def __init__(self):
@@ -17,7 +17,7 @@ class SimpleNet(nn.Module):
     def forward(self, x): return self.fc(x)
 
 # === Load data ===
-with open('data.pkl', 'rb') as f:
+with open('input/data.pkl', 'rb') as f:
     data, labels = pickle.load(f)
 data = torch.tensor(data, dtype=torch.float32).permute(0, 3, 1, 2) / 255.
 labels = torch.tensor(labels)

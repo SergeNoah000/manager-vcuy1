@@ -201,3 +201,33 @@ def submit_workflow_handler(workflow_id: str, callback: Optional[Callable[[Dict[
             'status': 'error',
             'message': f'Erreur lors de la soumission: {str(e)}'
         }
+
+
+
+
+def handle_volunteers_list(channel: str, message: Message):
+    """
+    Fonction qui gère la réception de la liste des volontaires
+    """
+    logger.info(f"Réception de la liste des volontaires sur le canal {channel}")
+    logger.info(f"Message reçu: {message}")
+
+    # Verifier la liste 
+
+    # Appeler l'ordonnanceur
+
+    #  Afficher le result
+
+    return True, message
+    
+    
+
+
+def listen_for_volunteers(workflow_id: str):
+    """
+    Fonction qui ecoute le canal de la liste des volontaires
+    """
+    
+    client = RedisClient.get_instance()
+    client.subscribe('volunteers/list', handle_volunteers_list)
+    

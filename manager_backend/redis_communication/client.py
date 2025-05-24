@@ -51,7 +51,7 @@ class RedisClient:
             raise RuntimeError("Utilisez RedisClient.get_instance() pour obtenir l'instance")
         
         self.config = config or {}
-        self.client_type = self.config.get('client_type', 'coordinator')
+        self.client_type = self.config.get('client_type', 'manager')
         self.client_id = self.config.get('client_id', str(uuid.uuid4()))
         
         # Paramètres de connexion

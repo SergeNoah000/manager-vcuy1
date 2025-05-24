@@ -76,12 +76,47 @@ def submit_workflow_view(request, workflow_id):
         
         # Lancer le découpage dans un thread séparé pour ne pas bloquer la réponse HTTP
         def process_workflow_async():
+            thread_logger = logging.getLogger(f"workflow_thread_{workflow_id}")
+            thread_logger.setLevel(logging.DEBUG)
+            
+            # Ajouter un handler pour afficher les logs dans la console
+            if not thread_logger.handlers:
+                handler = logging.StreamHandler()
+                handler.setLevel(logging.DEBUG)
+                formatter = logging.Formatter('%(asctime)s - [THREAD %(threadName)s] - %(name)s - %(levelname)s - %(message)s')
+                handler.setFormatter(formatter)
+                thread_logger.addHandler(handler)
+            
+            thread_logger.info(f"===== Début du traitement asynchrone du workflow {workflow_id} =====")
             try:
+                # Démarrer un serveur de fichiers pour ce workflow
+                from tasks.file_server import start_file_server
+                server_port = start_file_server(workflow)
+                
+                if not server_port:
+                    thread_logger.error(f"Impossible de démarrer le serveur de fichiers pour le workflow {workflow_id}")
+                    workflow.status = WorkflowStatus.FAILED
+                    workflow.save()
+                    notify_event('workflow_status_change', {
+                        'workflow_id': str(workflow_id),
+                        'status': 'FAILED',
+                        'message': 'Impossible de démarrer le serveur de fichiers pour le workflow'
+                    })
+                    return
+                
+                thread_logger.info(f"Serveur de fichiers démarré sur le port {server_port}")
+                
                 # Découpage du workflow
-                logger.info(f"Lancement du découpage")
+                thread_logger.info(f"Lancement du découpage")
                 from workflows.split_workflow import split_workflow
-                tasks = split_workflow(str(workflow_id), workflow.workflow_type)
-                logger.info(f"Tasks: {len(tasks) if tasks else 0} créées")
+                tasks = split_workflow(str(workflow_id), workflow.workflow_type, thread_logger)
+                thread_logger.info(f"Tasks: {len(tasks)} créées")
+                
+                # Préparer l'URL du serveur de fichiers
+                import socket
+                hostname = socket.gethostname()
+                ip_address = socket.gethostbyname(hostname)
+                file_server_url = f"http://{ip_address}:{server_port}"
                 
                 # Notifier la fin du découpage
                 notify_event('workflow_status_change', {
@@ -92,20 +127,83 @@ def submit_workflow_view(request, workflow_id):
                 
                 # Mettre à jour le statut du workflow
                 if response.get('volunteers'):
+                    thread_logger.info(f"Volontaires disponibles: {len(response.get('volunteers'))}")
                     workflow.status = WorkflowStatus.ASSIGNING
                     workflow.save()
                     
                     # Notifier le début de l'assignation
+                    thread_logger.info(f"Notification du début de l'assignation")
                     notify_event('workflow_status_change', {
                         'workflow_id': str(workflow_id),
                         'status': 'ASSIGNING',
                         'message': 'Attribution des tâches aux volontaires...'
                     })
                     
-                    logger.info(f"Lancement de l'assignment")
+                    thread_logger.info(f"Lancement de l'assignation")
                     from tasks.scheduller import assign_workflow_to_volunteers
-                    assign_workflow_to_volunteers(workflow, response.get('volunteers'))
-                    logger.info(f"Assignment effectué avec succès")
+                    thread_logger.info(f"Volontaires disponibles: {response.get('volunteers')}")
+                    
+                    # Assigner les tâches
+                    assignment_result = assign_workflow_to_volunteers(workflow, response.get('volunteers'))
+                    thread_logger.info(f"Résultat de l'assignation: {assignment_result}")
+                    
+                    # Préparer les informations du serveur de fichiers pour chaque tâche
+                    file_server_info = {
+                        'base_url': file_server_url,
+                        'workflow_id': str(workflow_id)
+                    }
+                    
+                    # Préparer les données d'assignation pour les volontaires
+                    assignments_by_volunteer = {}
+                    
+                    # Parcourir les assignations et les regrouper par volontaire
+                    for task_id, volunteer_id in assignment_result.get('assignments', {}).items():
+                        if volunteer_id not in assignments_by_volunteer:
+                            assignments_by_volunteer[volunteer_id] = []
+                        
+                        # Récupérer la tâche
+                        from tasks.models import Task
+                        task = Task.objects.get(id=task_id)
+                        
+                        # Préparer les informations de fichiers d'entrée
+                        input_files = []
+                        if task.input_files:
+                            for file_path in task.input_files:
+                                input_files.append({
+                                    'path': file_path,
+                                    'size': 0  # À implémenter: récupérer la taille du fichier
+                                })
+                        
+                        # Créer les données de la tâche pour ce volontaire
+                        task_data = {
+                            'task_id': str(task.id),
+                            'name': task.name,
+                            'parameters': task.parameters,
+                            'input_data': {
+                                'files': input_files,
+                                'file_server': file_server_info
+                            },
+                            'estimated_execution_time': task.estimated_max_time,
+                            'docker_information': task.docker_info or {}
+                        }
+                        
+                        assignments_by_volunteer[volunteer_id].append(task_data)
+                    
+                    # Envoyer les assignations aux volontaires
+                    redis_client = RedisClient.get_instance()
+                    for volunteer_id, tasks_data in assignments_by_volunteer.items():
+                        thread_logger.info(f"Envoi de {len(tasks_data)} tâches au volontaire {volunteer_id}")
+                        
+                        # Préparer le message d'assignation
+                        assignment_message = {
+                            'workflow_id': str(workflow_id),
+                            'assignments': {
+                                volunteer_id: tasks_data
+                            }
+                        }
+                        
+                        # Publier le message d'assignation
+                        redis_client.publish('task/assignment', assignment_message)
                     
                     # Notifier la fin de l'assignation
                     notify_event('workflow_status_change', {
@@ -113,46 +211,144 @@ def submit_workflow_view(request, workflow_id):
                         'status': 'ASSIGNED',
                         'message': 'Tâches attribuées avec succès'
                     })
+
+                    # Démarrer le serveur de fichiers local pour servir les fichiers d'entrée
+                    thread_logger.info(f"Démarrage du serveur de fichiers local")
+                    from tasks.file_server import start_file_server
+                    file_server_port = start_file_server(workflow)
+                    thread_logger.info(f"Serveur de fichiers démarré sur le port {file_server_port}")
+                    
+                    # Préparer les informations de tâches complètes pour chaque volontaire
+                    thread_logger.info(f"Préparation des informations de tâches pour chaque volontaire")
+                    from tasks.models import Task
+                    
+                    # Récupérer l'adresse IP du serveur
+                    import socket
+                    hostname = socket.gethostname()
+                    server_ip = socket.gethostbyname(hostname)
+                    
+                    # Enrichir les informations d'assignation pour chaque volontaire
+                    enriched_assignments = {}
+                    for volunteer_id, task_list in assignment_result.items():
+                        enriched_tasks = []
+                        for task_info in task_list:
+                            task_id = task_info['task_id']
+                            task = Task.objects.get(id=task_id)
+                            
+                            # Ajouter les informations complètes de la tâche
+                            enriched_task = {
+                                'task_id': task_id,
+                                'name': task.name,
+                                'workflow_id': str(workflow.id),
+                                'parameters': task.parameters,
+                                'estimated_execution_time': task.estimated_max_time,
+                                'input_data': {
+                                    'files': task.input_files,
+                                    'file_server': {
+                                        'host': server_ip,
+                                        'port': file_server_port,
+                                        'base_url': f'http://{server_ip}:{file_server_port}'
+                                    }
+                                },
+                                'input_data_size': task.input_size,
+                                'docker_information': task.docker_info if hasattr(task, 'docker_info') else {}
+                            }
+                            enriched_tasks.append(enriched_task)
+                        
+                        enriched_assignments[volunteer_id] = enriched_tasks
+                    
+                    # Lancer l'ecoute des canaux task/accept et task/complete
+                    thread_logger.info(f"Lancement de l'ecoute des canaux task/accept et task/complete")
+                    from tasks.handlers import listen_for_task_accept, listen_for_task_complete
+                    import uuid
+                    accept_success = listen_for_task_accept()
+                    complete_success = listen_for_task_complete()
+                    
+                    if accept_success and complete_success:
+                        thread_logger.info(f"Souscription aux canaux task/accept et task/complete réussie")
+                    else:
+                        thread_logger.warning(f"Problème lors de la souscription aux canaux: accept={accept_success}, complete={complete_success}")
+
+                    # Publier sur le canal d'assignment
+                    thread_logger.info(f"Publication sur le canal d'assignment")
+                    client = RedisClient.get_instance()
+                    from redis_communication.utils import get_manager_login_token
+                    
+                    client.publish('task/assignment',
+                        {
+                            'workflow_id': str(workflow_id),
+                            'assignments': enriched_assignments,
+                        },
+                        str(uuid.uuid4()),
+                        get_manager_login_token(),
+                        'request'
+                    )
                 else:
-                    logger.info(f"Volunteers non reçus, lancement de l'écoute sur le canal d'assignment")
+                    thread_logger.info(f"Aucun volontaire reçu, lancement de l'écoute sur le canal d'assignment")
                     pubsub = RedisClient.get_instance()
                     pubsub.subscribe('workflow/assignment')
+                    thread_logger.debug(f"Souscription au canal 'workflow/assignment' réussie")
                     
                     # Notifier l'attente de volontaires
+                    thread_logger.info(f"Notification de l'attente de volontaires")
                     notify_event('workflow_status_change', {
                         'workflow_id': str(workflow_id),
                         'status': 'WAITING_VOLUNTEERS',
                         'message': 'En attente de volontaires disponibles...'
                     })
+                    thread_logger.debug(f"Notification envoyée avec succès")
                 
-                # Lancer l'attribution des tâches
-                from tasks.scheduller import assign_tasks_fcfs
-                assign_tasks_fcfs(str(workflow_id))
+                # Lancer la fonction d'ecoute de la liste des volontaires chez le coordinateur
+                thread_logger.info(f"Lancement de la fonction d'ecoute de la liste des volontaires chez le coordinateur")
+                from workflows.handlers import listen_for_volunteers
+                listen_for_volunteers(workflow_id)
+                thread_logger.info(f"Fonction d'ecoute de la liste des volontaires chez le coordinateur lancée avec succès")
                 
                 # Notifier la fin du processus complet
+                thread_logger.info(f"Notification de la fin du processus complet")
                 notify_event('workflow_status_change', {
                     'workflow_id': str(workflow_id),
                     'status': workflow.status,
                     'message': 'Processus de soumission terminé'
                 })
+                thread_logger.info(f"===== Fin du traitement asynchrone du workflow {workflow_id} =====")
                 
             except Exception as e:
-                logger.error(f"Erreur lors du traitement asynchrone du workflow: {e}")
+                thread_logger.error(f"ERREUR lors du traitement asynchrone du workflow: {e}")
                 import traceback
-                logger.error(traceback.format_exc())
+                error_trace = traceback.format_exc()
+                thread_logger.error(f"Stacktrace détaillé:\n{error_trace}")
+                
+                # Mettre à jour le statut du workflow dans la base de données
+                try:
+                    workflow.status = 'ERROR'
+                    workflow.save()
+                    thread_logger.info(f"Statut du workflow mis à jour à 'ERROR' dans la base de données")
+                except Exception as db_error:
+                    thread_logger.error(f"Impossible de mettre à jour le statut du workflow dans la base de données: {db_error}")
                 
                 # Notifier l'erreur
-                notify_event('workflow_status_change', {
-                    'workflow_id': str(workflow_id),
-                    'status': 'ERROR',
-                    'message': f'Erreur lors du traitement: {str(e)}'
-                })
+                thread_logger.info(f"Envoi de la notification d'erreur")
+                try:
+                    notify_event('workflow_status_change', {
+                        'workflow_id': str(workflow_id),
+                        'status': 'ERROR',
+                        'message': f'Erreur lors du traitement: {str(e)}'
+                    })
+                    thread_logger.info(f"Notification d'erreur envoyée avec succès")
+                except Exception as notify_error:
+                    thread_logger.error(f"Impossible d'envoyer la notification d'erreur: {notify_error}")
+                
+                thread_logger.error(f"===== Fin du traitement asynchrone du workflow {workflow_id} avec ERREUR =====")
         
         # Démarrer le traitement asynchrone
         import threading
-        thread = threading.Thread(target=process_workflow_async)
+        thread_name = f"workflow-{workflow_id}-thread"
+        thread = threading.Thread(target=process_workflow_async, name=thread_name)
         thread.daemon = True
+        logger.info(f"Démarrage du thread '{thread_name}' pour le traitement asynchrone du workflow {workflow_id}")
         thread.start()
+        logger.info(f"Thread '{thread_name}' démarré avec succès")
         
         # Retourner immédiatement une réponse au client HTTP
         return JsonResponse(response_data, status=200)
