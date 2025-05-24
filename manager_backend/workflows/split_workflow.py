@@ -88,7 +88,7 @@ def split_ml_training_workflow(workflow_instance: Workflow, base_path, logger:lo
 
     # Étape 4: création des tâches pour chaque shard
     docker_img = {
-        "name": "training-test",
+        "name": "traning-test",
         "tag": "latest"
     }
     tasks = []
