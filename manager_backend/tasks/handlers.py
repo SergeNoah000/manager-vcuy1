@@ -5,11 +5,10 @@ Inclut les gestionnaires pour l'authentification des managers et des volontaires
 
 import logging
 import json
+from math import log
 from django.conf import settings
-
+from django.utils import timezone
 from redis_communication.message import Message
-from redis_communication.handlers import save_pending_request, delete_pending_request, log_message_handler
-from .models import Task, Workflow
 logger = logging.getLogger(__name__)
 
 
@@ -114,8 +113,150 @@ def handle_task_accept(channel: str, message: Message):
     
     return False
 
+
+
+
+def handle_task_progress(channel: str, message: Message):
+    """
+    Gere la reception de la progression des taches via le cannal 'task/progress'
+
+    Args:
+        channel (str): Nom du cannal 'task/progress'
+        message (Message): Message recu
+    """
+
+    logger.info("Progression de tache recu")
+    logger.warning(f"Contenu du message: {message.data}")
+
+    try:
+        # Récupérer les informations
+        data = message.data
+        
+        # Vérifier que le message contient les informations nécessaires
+        if 'workflow_id' not in data or 'task_id' not in data or 'volunteer_id' not in data:
+            logger.error("Le message ne contient pas les informations nécessaires (workflow_id, task_id, volunteer_id)")
+            return False
+        
+        workflow_id = data['workflow_id']
+        task_id = data['task_id']
+        volunteer_id = data['volunteer_id']
+        progress = data['progress']
+
+
+        # Récupérer les objets
+
+        from workflows.models import Workflow
+        from tasks.models import Task
+        from volunteers.models import Volunteer, VolunteerTask
+        workflow = Workflow.objects.get(id=workflow_id)
+        task = Task.objects.get(id=task_id)
+        volunteer = Volunteer.objects.get(coordinator_volunteer_id=volunteer_id)
+
+
+                
+            # Vérifier si la tâche est déjà assignée à ce volontaire
+        volunteer_task = VolunteerTask.objects.filter(task=task, volunteer=volunteer).first()
+
+
+        if volunteer_task:
+            # Mettre à jour le statut de l'assignation
+            volunteer_task.progress = progress
+            volunteer_task.save()
+            logger.info(f"Assignation mise à jour: tâche {task.name} en cours par le volontaire {volunteer.name}")
+            return True
+
+        else:
+            # Generer un message d'erreur
+            logger.error(f"Pas d'assignation de tache entre le volontaire {volunteer.name} et la tache {task.name}")
+            return False
+    except Workflow.DoesNotExist:
+        logger.error(f"Le workflow {workflow_id} n'existe pas")
+    except Task.DoesNotExist:
+        logger.error(f"La tâche {task_id} n'existe pas")
+    except Volunteer.DoesNotExist:
+        logger.error(f"Le volontaire {volunteer_id} n'existe pas")
+    except Exception as e:
+        logger.error(f"Erreur lors du traitement de l'acceptation de la tâche: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
     
+    return False
+
+
+
+def handle_task_status(channel: str, message: Message):
+    """
+    Mets à jour le statut de la tache
+
+    Args:
+        channel (str): canal
+        message (Message): Message recu
+    """
+
+
+    logger.info("Statut de tache recu")
+    logger.debug(f"Message de statut recu: {message.data}")
+
+    try:
+        # Récupérer les informations
+        data = message.data
+        
+        # Vérifier que le message contient les informations nécessaires
+        if 'workflow_id' not in data or 'task_id' not in data or 'volunteer_id' not in data:
+            logger.error("Le message ne contient pas les informations nécessaires (workflow_id, task_id, volunteer_id)")
+            return False
+        
+        workflow_id = data['workflow_id']
+        task_id = data['task_id']
+        volunteer_id = data['volunteer_id']
+        status = data['status']
+
+
+        # Récupérer les objets
+
+        from workflows.models import Workflow
+        from tasks.models import Task
+        from volunteers.models import Volunteer, VolunteerTask
+        workflow = Workflow.objects.get(id=workflow_id)
+        task = Task.objects.get(id=task_id)
+        volunteer = Volunteer.objects.get(coordinator_volunteer_id=volunteer_id)
+
+
+                
+            # Vérifier si la tâche est déjà assignée à ce volontaire
+        volunteer_task = VolunteerTask.objects.filter(task=task, volunteer=volunteer).first()
+
+
+        if volunteer_task:
+            # Mettre à jour le statut de l'assignation
+            volunteer_task.status = status
+            volunteer_task.save()
+            logger.info(f"Statut de la tâche mise à jour: tâche {task.name} en cours par le volontaire {volunteer.name}")
+            return True
+
+        else:
+            # Generer un message d'erreur
+            logger.error(f"Pas d'assignation de tache entre le volontaire {volunteer.name} et la tache {task.name}")
+            return False
+    except Workflow.DoesNotExist:
+        logger.error(f"Le workflow {workflow_id} n'existe pas")
+    except Task.DoesNotExist:
+        logger.error(f"La tâche {task_id} n'existe pas")
+    except Volunteer.DoesNotExist:
+        logger.error(f"Le volontaire {volunteer_id} n'existe pas")
+    except Exception as e:
+        logger.error(f"Erreur lors du traitement de l'acceptation de la tâche: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
     
+    return False
+    
+
+
+
+
+
+
 
 def handle_task_complete(channel: str, message: Message):
     """
@@ -289,9 +430,10 @@ def listen_for_task_complete():
         from redis_communication.client import RedisClient
         
         client = RedisClient.get_instance()
-        logger.info(f"[{timezone.now()}] Souscription au canal 'task/complete'")
-        client.subscribe('task/complete', handle_task_complete)
-        logger.info(f"[{timezone.now()}] Souscription au canal 'task/complete' réussie")
+        if not 'handle_task_complete' in client.handlers.values():
+            logger.info(f"[{timezone.now()}] Souscription au canal 'task/complete'")
+            client.subscribe('task/complete', handle_task_complete)
+            logger.info(f"[{timezone.now()}] Souscription au canal 'task/complete' réussie")
         
         # Vérifier que le client Redis est bien connecté
         if client.running:
@@ -306,6 +448,8 @@ def listen_for_task_complete():
         import traceback
         logger.error(traceback.format_exc())
         return False
+
+
 
 
 def listen_for_task_accept():
@@ -326,9 +470,10 @@ def listen_for_task_accept():
         from redis_communication.client import RedisClient
         
         client = RedisClient.get_instance()
-        logger.info(f"[{timezone.now()}] Souscription au canal 'task/accept'")
-        client.subscribe('task/accept', handle_task_accept)
-        logger.info(f"[{timezone.now()}] Souscription au canal 'task/accept' réussie")
+        if not 'handle_task_accept' in client.handlers.values():
+            logger.info(f"[{timezone.now()}] Souscription au canal 'task/progress'")
+            client.subscribe('task/progress', handle_task_accept)
+            logger.info(f"[{timezone.now()}] Souscription au canal 'task/progress' réussie")
         
         # Vérifier que le client Redis est bien connecté
         if client.running:
@@ -365,12 +510,13 @@ def listen_task_progress():
         from redis_communication.client import RedisClient
         
         client = RedisClient.get_instance()
-        logger.info(f"[{timezone.now()}] Souscription au canal 'task/progress'")
-        client.subscribe('task/progress', handle_task_progress)
-        logger.info(f"[{timezone.now()}] Souscription au canal 'task/progress' réussie")
+        if not 'handle_task_progress' in client.handlers.values():
+            logger.info(f"[{timezone.now()}] Souscription au canal 'task/progress'")
+            client.subscribe('task/progress', handle_task_progress)
+            logger.info(f"[{timezone.now()}] Souscription au canal 'task/progress' réussie")
         
         # Vérifier que le client Redis est bien connecté
-        if client.is_connected():
+        if client.running:
             logger.info(f"[{timezone.now()}] Client Redis connecté avec succès")
         else:
             logger.warning(f"[{timezone.now()}] Client Redis non connecté, les messages ne seront pas reçus")
@@ -382,3 +528,41 @@ def listen_task_progress():
         import traceback
         logger.error(traceback.format_exc())
         return False
+
+
+
+def listen_for_task_status():
+    """
+        Gere les status des taches et mets à jour le statut des taches
+    Returns:
+        bool: True si la souscription a réussi, False sinon
+    """
+    
+
+    import logging
+    from django.utils import timezone
+    logger = logging.getLogger(__name__)
+    
+    try:
+        from redis_communication.client import RedisClient
+        
+        client = RedisClient.get_instance()
+        if not 'handle_task_status' in client.handlers.values():
+            logger.info(f"[{timezone.now()}] Souscription au canal 'task/status'")
+            client.subscribe('task/status', handle_task_status)
+            logger.info(f"[{timezone.now()}] Souscription au canal 'task/status' réussie")
+        
+        # Vérifier que le client Redis est bien connecté
+        if client.running:
+            logger.info(f"[{timezone.now()}] Client Redis connecté avec succès")
+        else:
+            logger.warning(f"[{timezone.now()}] Client Redis non connecté, les messages ne seront pas reçus")
+            return False
+            
+        return True
+    except Exception as e:
+        logger.error(f"[{timezone.now()}] Erreur lors de la souscription au canal 'task/progress': {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return False
+    

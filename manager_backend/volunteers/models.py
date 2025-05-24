@@ -46,6 +46,9 @@ class VolunteerTask(models.Model):
         ("COMPLETED", "Completed"),
         ("FAILED", "Failed"),
         ("EXPIRED", "Expired"),
+        ("CANCEL", "Cancel"),
+        ("RUNNING", "Running"),
+        ("PAUSED", "Paused")
     ]
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="ASSIGNED")
     progress = models.FloatField(default=0) 

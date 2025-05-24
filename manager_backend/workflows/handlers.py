@@ -109,6 +109,14 @@ def submit_workflow_handler(workflow_id: str, callback: Optional[Callable[[Dict[
         elif workflow.workflow_type == WorkflowType.MATRIX_MULTIPLICATION:
             estimated_resources = estimate_matrix_multiplication_resources(workflow.input_data_size)
         
+        # Mettre à jour le statut du workflow
+        if estimated_resources is not None:
+            workflow.estimated_resources = estimated_resources
+            workflow.save()
+            logger.warning("Mise à jour des ressources estimées")
+        else:
+            logger.warning(f"Estimation des ressources echouée pour le workflow: {estimated_resources}")
+        
         # Préparer les données pour Redis
         data = {
             'workflow_id': str(workflow.id),

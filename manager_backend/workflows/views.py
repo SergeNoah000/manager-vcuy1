@@ -13,7 +13,7 @@ from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from .serializers import WorkflowSerializer, RegisterSerializer
 import traceback
-from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
 import logging
 from redis_communication.client import RedisClient
 
@@ -61,6 +61,7 @@ def submit_workflow_view(request, workflow_id):
             
         # Soumission réussie, mettre à jour le statut et notifier
         workflow.status = WorkflowStatus.SPLITTING
+        workflow.submitted_at = timezone.now()
         workflow.save()
         logger.info(f"Workflow {workflow_id} soumis avec succès")
         
