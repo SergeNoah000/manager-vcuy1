@@ -3,7 +3,7 @@
 import { useEffect, useState, JSX } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { workflowService } from '@/lib/api';
+import { workflowService, taskService } from '@/lib/api';
 
 // Types
 interface Workflow {
@@ -36,38 +36,30 @@ interface Task {
 export default function WorkflowDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  
+
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Données fictives pour les tests - à retirer en production
-  const mockTasks: Task[] = [
-    { id: '1', name: 'Prétraitement des données', status: 'COMPLETED', progress: 100 },
-    { id: '2', name: 'Analyse statistique', status: 'RUNNING', progress: 75 },
-    { id: '3', name: 'Génération de rapports', status: 'SUBMITTED', progress: 0 },
-  ];
-
+  // --- Chargement du workflow et de ses tâches ---
   useEffect(() => {
-    // Charger le workflow
     const fetchWorkflow = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
-        const data = await workflowService.getWorkflow(id as string);
-        setWorkflow(data);
-        
-        // Charger les tâches de ce workflow (à implémenter dans votre API)
-        // Commentez ces lignes et décommentez les vôtres une fois l'API prête
-        setTasks(mockTasks);
-        // const tasksData = await workflowService.getWorkflowTasks(id as string);
-        // setTasks(tasksData);
-        
+        // 1) Charger les détails du workflow
+        const wf = await workflowService.getWorkflow(id as string);
+        setWorkflow(wf);
+
+        // 2) Charger toutes les tâches liées à ce workflow
+        const workflowTasks = await taskService.getWorkflowTasks(id as string);
+        setTasks(workflowTasks);
+
         setError(null);
       } catch (err: any) {
-        console.error('Erreur lors du chargement du workflow:', err);
-        setError(err.error || 'Une erreur est survenue lors du chargement du workflow');
+        console.error('Erreur lors du chargement:', err);
+        setError(err.error || 'Une erreur est survenue lors du chargement');
       } finally {
         setLoading(false);
       }
@@ -78,39 +70,37 @@ export default function WorkflowDetailPage() {
     }
   }, [id]);
 
-  // Soumettre le workflow pour traitement
+  // --- Soumission du workflow ---
   const handleSubmit = async () => {
-    if (!workflow || !workflow.id) return;
-    
+    if (!workflow) return;
+    setSubmitting(true);
     try {
-      setSubmitting(true);
       await workflowService.submitWorkflow(workflow.id);
-      
-      // Rafraîchir les données
-      const updatedWorkflow = await workflowService.getWorkflow(workflow.id);
-      setWorkflow(updatedWorkflow);
-      
+      // Recharger le workflow
+      const updated = await workflowService.getWorkflow(workflow.id);
+      setWorkflow(updated);
+      // Recharger aussi les tâches (elles seront créées côté back)
+      const workflowTasks = await taskService.getWorkflowTasks(workflow.id);
+      setTasks(workflowTasks);
       setError(null);
     } catch (err: any) {
-      console.error('Erreur lors de la soumission du workflow:', err);
-      setError(err.error || 'Une erreur est survenue lors de la soumission du workflow');
+      console.error('Erreur lors de la soumission:', err);
+      setError(err.error || 'Une erreur est survenue lors de la soumission');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Fonction pour formater la date
-  const formatDate = (dateString: string | null | undefined) => {
+  // --- Formatage d’une date au format fr-FR ---
+  const formatDate = (dateString?: string | null) => {
     if (!dateString) return 'Non disponible';
-    
-    const date = new Date(dateString);
     return new Intl.DateTimeFormat('fr-FR', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
+      minute: '2-digit',
+    }).format(new Date(dateString));
   };
 
   // Obtenir les informations de statut avec icône et couleurs
@@ -391,7 +381,7 @@ export default function WorkflowDetailPage() {
               )}
             </div>
           </div>
-          
+
           {/* Barre de progression du workflow */}
           {workflow.status !== 'CREATED' && workflow.status !== 'FAILED' && (
             <div className="mt-6">
@@ -498,7 +488,7 @@ export default function WorkflowDetailPage() {
           </div>
         </div>
       </div>
-
+        
       {/* Détails du workflow en tabs */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6 border border-gray-100">
         <div className="border-b border-gray-200">
@@ -665,7 +655,7 @@ export default function WorkflowDetailPage() {
                           </div>
                         </div>
                         <Link
-                          href={`/tasks/${task.id}`}
+                          href={`/workflows/${id}/tasks/${task.id}`}
                           className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center bg-white px-3 py-1 rounded-md border border-blue-200 shadow-sm"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
