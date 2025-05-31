@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // Utiliser une URL absolue pour éviter les problèmes relatifs
-const API_URL = 'http://127.0.0.1:8001';
+const API_URL = 'http://127.0.0.1:8000';
 
 // Instance axios de base
 const api = axios.create({
@@ -41,8 +41,7 @@ api.interceptors.response.use(
 export const authService = {
   // Inscription
   register: async (userData: {
-    first_name: string;
-    last_name: string;
+    username: string;
     email: string;
     password: string;
     password2: string;
@@ -50,8 +49,7 @@ export const authService = {
     try {
       // Afficher les données pour le débogage (sans le mot de passe)
       console.log('Envoi des données d\'inscription:', {
-        first_name: userData.first_name,
-        last_name: userData.last_name,
+        username: userData.username,
         email: userData.email,
         password: '********'
       });

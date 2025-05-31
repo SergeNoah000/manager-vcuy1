@@ -187,13 +187,13 @@ REST_FRAMEWORK = {
 }
 
 # --- MANAGER HOST ---
-MANAGER_HOST = 'http://192.168.1.1'  # Change this to your actual host
+MANAGER_HOST = 'localhost'  # Change this to your actual host
 
 
 # Configuration Redis
 # Si environnement de développement, utiliser localhost
 if DEBUG:
-    REDIS_HOST = '127.0.0.1'  # localhost
+    REDIS_HOST = 'localhost'  # localhost
     REDIS_PORT = 6380  # port Redis standard
 else:
     REDIS_HOST = '192.168.1.105'  # serveur de production

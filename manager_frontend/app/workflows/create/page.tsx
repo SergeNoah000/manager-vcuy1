@@ -41,6 +41,8 @@ export default function CreateWorkflowPage() {
     visible: { opacity: 1, y: 0 }
   };
 
+
+  
   // Gestion des changements de champs avec sécurité contre NaN
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -61,6 +63,108 @@ export default function CreateWorkflowPage() {
       }));
     }
   };
+
+  // Fonction pour gérer la sélection de chemin
+// Version simplifiée sans déclarations de types globales
+const handleSelectPath = async (fieldName: string): Promise<void> => {
+  try {
+    // Vérifier si l'API est disponible
+    const hasFileSystemAccess = 'showOpenFilePicker' in window || 'showDirectoryPicker' in window;
+    
+    if (hasFileSystemAccess) {
+      if (fieldName === 'executable_path') {
+        // Sélection de fichier
+        const showOpenFilePicker = (window as any).showOpenFilePicker;
+        if (showOpenFilePicker) {
+          const fileHandle = await showOpenFilePicker({
+            types: [
+              {
+                description: 'Fichiers exécutables',
+                accept: {
+                  'text/x-python': ['.py'],
+                  'application/x-sh': ['.sh'],
+                  'application/x-msdos-program': ['.exe', '.bat']
+                }
+              }
+            ],
+            multiple: false
+          });
+          
+          if (fileHandle && fileHandle[0]) {
+            setFormData(prev => ({
+              ...prev,
+              [fieldName]: fileHandle[0].name
+            }));
+            return;
+          }
+        }
+      } else {
+        // Sélection de dossier
+        const showDirectoryPicker = (window as any).showDirectoryPicker;
+        if (showDirectoryPicker) {
+          const directoryHandle = await showDirectoryPicker({
+            mode: 'readwrite'
+          });
+          
+          if (directoryHandle) {
+            setFormData(prev => ({
+              ...prev,
+              [fieldName]: directoryHandle.name
+            }));
+            return;
+          }
+        }
+      }
+    }
+    
+    // Fallback vers input file classique
+    useFallbackFilePicker(fieldName);
+    
+  } catch (error: unknown) {
+    const err = error as { name?: string };
+    if (err.name !== 'AbortError') {
+      console.error('Erreur lors de la sélection du chemin:', error);
+      useFallbackFilePicker(fieldName);
+    }
+  }
+};
+
+// Fonction fallback
+const useFallbackFilePicker = (fieldName: string): void => {
+  const input = document.createElement('input');
+  
+  if (fieldName === 'executable_path') {
+    input.type = 'file';
+    input.accept = '.py,.exe,.sh,.bat';
+  } else {
+    input.type = 'file';
+    (input as any).webkitdirectory = true;
+  }
+  
+  input.onchange = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    const files = target.files;
+    
+    if (files && files.length > 0) {
+      if (fieldName === 'executable_path') {
+        setFormData(prev => ({
+          ...prev,
+          [fieldName]: files[0].name
+        }));
+      } else {
+        const file = files[0] as any;
+        const path = file.webkitRelativePath || file.name;
+        const folderPath = path.includes('/') ? path.substring(0, path.indexOf('/')) : path;
+        setFormData(prev => ({
+          ...prev,
+          [fieldName]: folderPath
+        }));
+      }
+    }
+  };
+  
+  input.click();
+};
 
   // Soumission du formulaire
   const handleSubmit = async (e: React.FormEvent) => {
@@ -226,7 +330,6 @@ export default function CreateWorkflowPage() {
                 </div>
               </div>
             </motion.div>
-
             {/* Paramètres d'exécution */}
             <motion.div 
               variants={fadeInUp}
@@ -245,21 +348,33 @@ export default function CreateWorkflowPage() {
                     <label htmlFor="executable_path" className="block text-sm font-medium text-gray-900 mb-1">
                       Chemin de l'exécutable
                     </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <svg className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                        </div>
+                        <input
+                          id="executable_path"
+                          name="executable_path"
+                          type="text"
+                          value={formData.executable_path}
+                          onChange={handleChange}
+                          className="block w-full pl-10 border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                          placeholder="/chemin/vers/executable.py"
+                        />
                       </div>
-                      <input
-                        id="executable_path"
-                        name="executable_path"
-                        type="text"
-                        value={formData.executable_path}
-                        onChange={handleChange}
-                        className="block w-full pl-10 border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                        placeholder="/chemin/vers/executable.py"
-                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPath('executable_path')}
+                        className="px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all flex items-center"
+                        title="Sélectionner un fichier"
+                      >
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-5L9 5H5a2 2 0 00-2 2z" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
                   
@@ -267,21 +382,33 @@ export default function CreateWorkflowPage() {
                     <label htmlFor="input_path" className="block text-sm font-medium text-gray-900 mb-1">
                       Chemin des données d'entrée
                     </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <svg className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                          </svg>
+                        </div>
+                        <input
+                          id="input_path"
+                          name="input_path"
+                          type="text"
+                          value={formData.input_path}
+                          onChange={handleChange}
+                          className="block w-full pl-10 border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                          placeholder="/chemin/vers/données/input/"
+                        />
                       </div>
-                      <input
-                        id="input_path"
-                        name="input_path"
-                        type="text"
-                        value={formData.input_path}
-                        onChange={handleChange}
-                        className="block w-full pl-10 border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                        placeholder="/chemin/vers/données/input/"
-                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPath('input_path')}
+                        className="px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all flex items-center"
+                        title="Sélectionner un dossier"
+                      >
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-5L9 5H5a2 2 0 00-2 2z" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
                   
@@ -289,27 +416,38 @@ export default function CreateWorkflowPage() {
                     <label htmlFor="output_path" className="block text-sm font-medium text-gray-900 mb-1">
                       Chemin des résultats
                     </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                        </svg>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <svg className="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                          </svg>
+                        </div>
+                        <input
+                          id="output_path"
+                          name="output_path"
+                          type="text"
+                          value={formData.output_path}
+                          onChange={handleChange}
+                          className="block w-full pl-10 border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                          placeholder="/chemin/vers/résultats/output/"
+                        />
                       </div>
-                      <input
-                        id="output_path"
-                        name="output_path"
-                        type="text"
-                        value={formData.output_path}
-                        onChange={handleChange}
-                        className="block w-full pl-10 border border-gray-300 rounded-lg shadow-sm py-3 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                        placeholder="/chemin/vers/résultats/output/"
-                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPath('output_path')}
+                        className="px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all flex items-center"
+                        title="Sélectionner un dossier"
+                      >
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-5L9 5H5a2 2 0 00-2 2z" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
                 </div>
               </div>
             </motion.div>
-
             {/* Paramètres avancés */}
             <motion.div 
               variants={fadeInUp}

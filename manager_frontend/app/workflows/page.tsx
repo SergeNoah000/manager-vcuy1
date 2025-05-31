@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { workflowService } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { ProfileModal } from '@/components/ProfileModal';
 
 // Types
 interface Workflow {
@@ -14,6 +15,8 @@ interface Workflow {
   status: string;
   created_at: string;
 }
+
+
 
 export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
@@ -100,6 +103,23 @@ export default function WorkflowsPage() {
     
     return () => clearTimeout(fallbackTimer);
   }, [isAuthenticated]);
+
+
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer ce workflow ?")) return;
+    try {
+      setLoading(true);
+      await workflowService.deleteWorkflow(id);
+      // on filtre le workflow supprimé de la liste
+      setWorkflows((ws) => ws.filter((w) => w.id !== id));
+    } catch (err: any) {
+      console.error("Erreur suppression :", err);
+      setError(err.error || "Échec de la suppression du workflow");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Fonction pour filtrer les workflows
   const filteredWorkflows = workflows.filter(workflow => {
@@ -300,12 +320,13 @@ export default function WorkflowsPage() {
               </Link>
               
               <Link 
-                href="/tasks" 
+                href="/tasks"
                 className="inline-flex items-center px-4 py-2 bg-indigo-800 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors duration-200"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
+                Tasks
               </Link>
               
               <Link 
@@ -321,15 +342,7 @@ export default function WorkflowsPage() {
             
             <div className="flex items-center space-x-3 mt-2 sm:mt-0">
               <span className="text-white text-sm hidden md:inline-block">Plateforme de gestion de workflows distribués</span>
-              <Link
-                href="/profile"
-                className="inline-flex items-center px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white text-sm font-medium rounded-full transition-colors duration-200"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                Profil
-              </Link>
+              <ProfileModal />
             </div>
           </div>
         </div>
@@ -564,25 +577,6 @@ export default function WorkflowsPage() {
                            Détails
                          </Link>
                          
-                         <Link 
-                           href={`/workflows/${workflow.id}/tasks`} 
-                           className="text-emerald-600 hover:text-emerald-800 text-sm font-medium flex items-center"
-                         >
-                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                           </svg>
-                           Tâches
-                         </Link>
-                         
-                         <Link 
-                           href={`/workflows/${workflow.id}/volunteers`} 
-                           className="text-purple-600 hover:text-purple-800 text-sm font-medium flex items-center"
-                         >
-                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                           </svg>
-                           Volontaires
-                         </Link>
                          
                          <Link 
                            href={`/workflows/${workflow.id}/edit`} 
@@ -595,11 +589,7 @@ export default function WorkflowsPage() {
                          </Link>
                          
                          <button
-                           onClick={() => {
-                             if (confirm('Êtes-vous sûr de vouloir supprimer ce workflow?')) {
-                               // Implémenter la suppression
-                             }
-                           }}
+                           onClick={() => handleDelete(workflow.id)}
                            className="text-red-600 hover:text-red-800 text-sm font-medium flex items-center"
                          >
                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -733,26 +723,7 @@ export default function WorkflowsPage() {
                                    </svg>
                                    Détails
                                  </Link>
-                                 
-                                 <Link 
-                                   href={`/workflows/${workflow.id}/tasks`} 
-                                   className="inline-flex items-center px-2.5 py-1.5 bg-emerald-50 border border-emerald-200 rounded-md text-xs font-medium text-emerald-600 hover:bg-emerald-100 transition-colors duration-200"
-                                 >
-                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                   </svg>
-                                   Tâches
-                                 </Link>
-                                 
-                                 <Link 
-                                   href={`/workflows/${workflow.id}/volunteers`} 
-                                   className="inline-flex items-center px-2.5 py-1.5 bg-purple-50 border border-purple-200 rounded-md text-xs font-medium text-purple-600 hover:bg-purple-100 transition-colors duration-200"
-                                 >
-                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                   </svg>
-                                   Volontaires
-                                 </Link>
+                                
                                  
                                  <Link 
                                    href={`/workflows/${workflow.id}/edit`} 
@@ -765,11 +736,7 @@ export default function WorkflowsPage() {
                                  </Link>
                                  
                                  <button
-                                   onClick={() => {
-                                     if (confirm('Êtes-vous sûr de vouloir supprimer ce workflow?')) {
-                                       // Implémenter la suppression
-                                     }
-                                   }}
+                                   onClick={() => handleDelete(workflow.id)}
                                    className="inline-flex items-center px-2.5 py-1.5 bg-red-50 border border-red-200 rounded-md text-xs font-medium text-red-600 hover:bg-red-100 transition-colors duration-200"
                                  >
                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
