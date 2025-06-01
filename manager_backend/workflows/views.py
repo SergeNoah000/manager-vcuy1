@@ -1,7 +1,7 @@
 # backend/workflows/views.py
 import json
 from rest_framework import viewsets
-from .models import Workflow, WorkflowStatus
+from .models import Workflow, WorkflowStatus, User
 from .serializers import WorkflowSerializer
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.http import JsonResponse
@@ -172,7 +172,7 @@ def submit_workflow_view(request, workflow_id):
                             for file_path in task.input_files:
                                 input_files.append({
                                     'path': file_path,
-                                    'size': 0  # À implémenter: récupérer la taille du fichier
+                                    'size': 0  
                                 })
                         
                         # Créer les données de la tâche pour ce volontaire
@@ -260,15 +260,17 @@ def submit_workflow_view(request, workflow_id):
                     
                     # Lancer l'ecoute des canaux task/accept et task/complete
                     thread_logger.info(f"Lancement de l'ecoute des canaux task/accept et task/complete")
-                    from tasks.handlers import listen_for_task_accept, listen_for_task_complete
+                    from tasks.handlers import listen_for_task_accept, listen_for_task_complete, listen_for_task_status, listen_task_progress
                     import uuid
                     accept_success = listen_for_task_accept()
                     complete_success = listen_for_task_complete()
+                    status_success = listen_for_task_status()
+                    progress_success = listen_task_progress()
                     
-                    if accept_success and complete_success:
-                        thread_logger.info(f"Souscription aux canaux task/accept et task/complete réussie")
+                    if accept_success and complete_success and status_success and progress_success:
+                        thread_logger.info(f"Souscription aux canaux task/accept et task/complete, task/status et task/progress réussie")
                     else:
-                        thread_logger.warning(f"Problème lors de la souscription aux canaux: accept={accept_success}, complete={complete_success}")
+                        thread_logger.warning(f"Problème lors de la souscription aux canaux: accept={accept_success}, complete={complete_success}, status={status_success}, progress={progress_success}")
 
                     # Publier sur le canal d'assignment
                     thread_logger.info(f"Publication sur le canal d'assignment")
@@ -459,7 +461,7 @@ class LoginView(APIView):
                 user = User.objects.get(email=email)
                 print(f"[DEBUG] Utilisateur trouvé: {user.email}")
                 
-                if user.check_password(password):
+                if user.password == password:
                     # Connexion réussie
                     token, created = Token.objects.get_or_create(user=user)
                     print(f"[DEBUG] Connexion réussie pour: {user.email}, Token: {token.key}")

@@ -192,8 +192,6 @@ def handle_task_status(channel: str, message: Message):
         channel (str): canal
         message (Message): Message recu
     """
-
-
     logger.info("Statut de tache recu")
     logger.debug(f"Message de statut recu: {message.data}")
 
@@ -203,7 +201,7 @@ def handle_task_status(channel: str, message: Message):
         
         # Vérifier que le message contient les informations nécessaires
         if 'workflow_id' not in data or 'task_id' not in data or 'volunteer_id' not in data:
-            logger.error("Le message ne contient pas les informations nécessaires (workflow_id, task_id, volunteer_id)")
+            logger.error(f"Le message ne contient pas les informations nécessaires (workflow_id, task_id, volunteer_id): {message.data} {type(message.data)}")
             return False
         
         workflow_id = data['workflow_id']
@@ -211,9 +209,7 @@ def handle_task_status(channel: str, message: Message):
         volunteer_id = data['volunteer_id']
         status = data['status']
 
-
         # Récupérer les objets
-
         from workflows.models import Workflow
         from tasks.models import Task
         from volunteers.models import Volunteer, VolunteerTask
@@ -221,23 +217,176 @@ def handle_task_status(channel: str, message: Message):
         task = Task.objects.get(id=task_id)
         volunteer = Volunteer.objects.get(coordinator_volunteer_id=volunteer_id)
 
-
-                
-            # Vérifier si la tâche est déjà assignée à ce volontaire
+        # Vérifier si la tâche est déjà assignée à ce volontaire
         volunteer_task = VolunteerTask.objects.filter(task=task, volunteer=volunteer).first()
 
-
-        if volunteer_task:
-            # Mettre à jour le statut de l'assignation
-            volunteer_task.status = status
-            volunteer_task.save()
-            logger.info(f"Statut de la tâche mise à jour: tâche {task.name} en cours par le volontaire {volunteer.name}")
-            return True
-
-        else:
+        if not volunteer_task:
             # Generer un message d'erreur
             logger.error(f"Pas d'assignation de tache entre le volontaire {volunteer.name} et la tache {task.name}")
             return False
+
+        # Mettre à jour le statut de l'assignation
+        volunteer_task.status = status
+        volunteer_task.save()
+        logger.info(f"Statut de la tâche mise à jour: tâche {task.name} statut {status} par le volontaire {volunteer.name}")
+        
+        # Traiter les différents statuts
+        if status.lower() == 'completed':
+            # La tâche est terminée, télécharger les fichiers de sortie
+            logger.info(f"Tâche {task.name} terminée par le volontaire {volunteer.name}, téléchargement des fichiers de sortie")
+            
+            # Vérifier si les informations du serveur de fichiers sont disponibles
+            if 'file_server' in data:
+                file_server = data['file_server']
+                host = file_server.get('host', '127.0.0.1')
+                port = file_server.get('port')
+                path = file_server.get('path', '/files/')
+                output_files = file_server.get('output_files', [])
+                
+                if port and output_files:
+                    # Créer le répertoire de sortie pour cette tâche
+                    import os
+                    output_dir = os.path.join(workflow.output_path, str(task.id))
+                    os.makedirs(output_dir, exist_ok=True)
+                    
+                    # Télécharger les fichiers
+                    import requests
+                    import shutil
+                    
+                    success = True
+                    downloaded_files = []
+                    logger.info(f"Téléchargement des fichiers de sortie: {output_files}")
+                    for file in output_files:
+                        file_url = f"http://{host}:{port}{path}{file}"
+                        output_path = os.path.join(output_dir, file)
+                        
+                        try:
+                            response = requests.get(file_url, stream=True)
+                            if response.status_code == 200:
+                                with open(output_path, 'wb') as f:
+                                    shutil.copyfileobj(response.raw, f)
+                                downloaded_files.append(output_path)
+                                logger.info(f"Fichier téléchargé: {file}")
+                            else:
+                                logger.error(f"Erreur lors du téléchargement du fichier {file}: {response.status_code}")
+                                success = False
+                        except Exception as e:
+                            logger.error(f"Erreur lors du téléchargement du fichier {file}: {e}")
+                            success = False
+                    
+                    if success:
+                        # Mettre à jour la tâche avec les fichiers de sortie
+                        task.output_files = downloaded_files
+                        task.status = 'completed'
+                        task.end_date = timezone.now()
+                        task.save()
+                        logger.info(f"Tâche {task.name} terminée avec succès, fichiers téléchargés")
+                        
+                        # Envoyer une notification de fin de tâche au volontaire
+                        from redis_communication.client import RedisClient
+                        from redis_communication.utils import get_manager_login_token
+                        import uuid
+                        redis_client = RedisClient.get_instance()
+                        
+                        redis_client.publish('task/terminate', {
+                                'task_id': str(task.id),
+                                'volunteer_id': str(volunteer.coordinator_volunteer_id),
+                                'workflow_id': str(workflow.id),
+                                'status': 'terminated',
+                                'clean_files': True,  # Supprimer les fichiers côté volontaire
+                                'timestamp': timezone.now().isoformat()
+                            },
+                            str(uuid.uuid4()),
+                            get_manager_login_token(),
+                            'request'
+                        )
+                        
+                        logger.info(f"Tâche {task.name} terminée avec succès, fichiers téléchargés")
+                        
+                        # Vérifier si toutes les tâches du workflow sont terminées
+                        all_tasks_completed = Task.objects.filter(workflow=workflow).exclude(status='completed').count() 
+                        terminated_tasks = all_tasks_completed == 0
+                        if terminated_tasks:
+
+                            # Mettre à jour le workflow
+                            workflow.status = 'completed'
+                            workflow.end_date = timezone.now()
+                            workflow.save()
+                            logger.info(f"Workflow {workflow.name} terminé avec succès")
+
+                            # Envoyer une notification de fin de workflow au volontaire
+                            redis_client.publish('workflow/terminate', {
+                                'workflow_id': str(workflow.id),
+                                'volunteer_id': str(volunteer.coordinator_volunteer_id),
+                                'status': 'terminated',
+                                'clean_files': True,  # Supprimer les fichiers côté volontaire
+                                'timestamp': timezone.now().isoformat()
+                            },
+                            str(uuid.uuid4()),
+                            get_manager_login_token(),
+                            'request'
+                            )
+                            
+                            logger.info(f"Workflow {workflow.name} terminé avec succès, fichiers téléchargés")
+
+                            # Lancer l'agregation des résultats
+                            from workflows.models import WorkflowType
+                            if workflow.workflow_type == WorkflowType.ML_TRAINING:
+                                from workflows.examples.distributed_training_demo.merge_models import   merge_models
+                                input_path = workflow.output_path
+                                output_path = os.path.join(workflow.output_path, 'merged_model.pt')
+                                merge_models(input_path, output_path)
+                                logger.info(f"Modèles fusionnés avec succès")
+
+                                # Supprimer les sous dossier de l'output sauf merged_model.pt
+                                import os
+                                for item in os.listdir(workflow.output_path):
+                                    item_path = os.path.join(workflow.output_path, item)
+                                    if os.path.isdir(item_path):
+                                        # Supprimer le sous-dossier et tout son contenu
+                                        shutil.rmtree(item_path)
+                                logger.info(f"Fichiers de sortie supprimés")
+                        
+                        else:
+                            logger.info(f"Taches terminées: {terminated_tasks}/{workflow.tasks.count()}")
+
+                                
+
+                    else:
+                        logger.error(f"Erreur lors du téléchargement des fichiers de sortie pour la tâche {task.name}")
+                else:
+                    logger.error(f"Informations de serveur de fichiers incomplètes: port={port}, files={output_files}")
+            else:
+                logger.error(f"Aucune information de serveur de fichiers dans le message de statut pour la tâche {task.name}")
+        
+        elif status.lower() == 'paused':
+            # La tâche est en pause
+            task.status = 'paused'
+            task.save()
+            logger.info(f"Tâche {task.name} mise en pause par le volontaire {volunteer.name}")
+        
+        elif status.lower() == 'progress':
+            # La tâche est en cours
+            task.status = 'running'
+            task.save()
+            logger.info(f"Tâche {task.name} en cours d'exécution par le volontaire {volunteer.name}")
+        
+        elif status.lower() == 'stopped' or status.lower() == 'cancel':
+            # La tâche est arrêtée
+            task.status = 'cancelled'
+            task.end_date = timezone.now()
+            task.save()
+            logger.info(f"Tâche {task.name} arrêtée par le volontaire {volunteer.name}")
+        
+        elif status.lower() == 'error' or status.lower() == 'failed':
+            # La tâche a échoué
+            task.status = 'failed'
+            task.end_date = timezone.now()
+            task.save()
+            logger.info(f"Tâche {task.name} a échoué sur le volontaire {volunteer.name}")
+        
+        return True
+
     except Workflow.DoesNotExist:
         logger.error(f"Le workflow {workflow_id} n'existe pas")
     except Task.DoesNotExist:
@@ -245,7 +394,7 @@ def handle_task_status(channel: str, message: Message):
     except Volunteer.DoesNotExist:
         logger.error(f"Le volontaire {volunteer_id} n'existe pas")
     except Exception as e:
-        logger.error(f"Erreur lors du traitement de l'acceptation de la tâche: {e}")
+        logger.error(f"Erreur lors du traitement du statut de la tâche: {e}")
         import traceback
         logger.error(traceback.format_exc())
     
@@ -471,9 +620,9 @@ def listen_for_task_accept():
         
         client = RedisClient.get_instance()
         if not 'handle_task_accept' in client.handlers.values():
-            logger.info(f"[{timezone.now()}] Souscription au canal 'task/progress'")
-            client.subscribe('task/progress', handle_task_accept)
-            logger.info(f"[{timezone.now()}] Souscription au canal 'task/progress' réussie")
+            logger.info(f"[{timezone.now()}] Souscription au canal 'task/accept'")
+            client.subscribe('task/accept', handle_task_accept)
+            logger.info(f"[{timezone.now()}] Souscription au canal 'task/accept' réussie")
         
         # Vérifier que le client Redis est bien connecté
         if client.running:
@@ -565,4 +714,7 @@ def listen_for_task_status():
         import traceback
         logger.error(traceback.format_exc())
         return False
+    
+
+
     

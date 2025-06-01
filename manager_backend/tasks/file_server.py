@@ -65,8 +65,8 @@ def start_file_server(workflow: Workflow, port: int = 0) -> int:
     workflow_base_dir = workflow.input_path
     
     if not os.path.exists(workflow_base_dir):
-        logger.error(f"Le répertoire du workflow {workflow_id} n'existe pas: {workflow_base_dir}")
-        return None
+        os.makedirs(workflow_base_dir)
+        logger.warning(f"Le répertoire du workflow {workflow_id} n'existe pas, il a été créé: {workflow_base_dir}")
     
     # Créer un gestionnaire de requêtes avec le répertoire de base du workflow
     handler = lambda *args, **kwargs: WorkflowFileHandler(*args, workflow_base_dir=workflow_base_dir, **kwargs)

@@ -3,3 +3,8 @@ inputs/
 __pycache__/
 db.sqlite3
 migrations/
+
+
+venv
+.manager
+.manager_app
