@@ -20,6 +20,7 @@ from redis_communication.client import RedisClient
 
 logger = logging.getLogger(__name__)
 
+from .models import User
 
 
 class WorkflowViewSet(viewsets.ModelViewSet):

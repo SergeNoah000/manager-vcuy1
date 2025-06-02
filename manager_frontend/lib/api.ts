@@ -1,192 +1,312 @@
 // lib/api.ts
 import axios from 'axios';
 
-// Utiliser une URL absolue pour éviter les problèmes relatifs
-const API_URL = 'http://127.0.0.1:8001';
-
-// Instance axios de base
+// Configuration de l'instance API avec la bonne URL de base
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001',
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
-  }
-});
-
-// Ajouter le token d'authentification si disponible
-api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Token ${token}`;
-    }
-  }
-  return config;
-});
-
-// Log pour débogage des réponses
-api.interceptors.response.use(
-  response => {
-    console.log(`[API] Réponse ${response.config.url}:`, response.status, response.data);
-    return response;
   },
-  error => {
-    console.error(`[API] Erreur ${error.config?.url || 'inconnue'}:`, 
-      error.response?.status || 'no status', 
-      error.response?.data || error.message);
+});
+
+// Intercepteur pour ajouter le token d'authentification
+api.interceptors.request.use(
+  (config) => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        config.headers.Authorization = `Token ${token}`;
+      }
+    }
+    
+    // Log pour débogage (sans afficher les mots de passe)
+    console.log(`[API] Requête ${config.method?.toUpperCase()} ${config.url}:`, {
+      headers: { ...config.headers, Authorization: config.headers.Authorization ? 'Token ***' : undefined },
+      data: config.data ? { 
+        ...config.data, 
+        password: config.data.password ? '********' : undefined,
+        password2: config.data.password2 ? '********' : undefined
+      } : undefined
+    });
+    
+    return config;
+  },
+  (error) => {
+    console.error('[API] Erreur de requête:', error);
     return Promise.reject(error);
   }
 );
 
-// Services d'authentification
+// Intercepteur pour gérer les réponses et erreurs
+api.interceptors.response.use(
+  (response) => {
+    console.log(`[API] Réponse ${response.config.url}:`, {
+      status: response.status,
+      statusText: response.statusText,
+      data: response.data
+    });
+    return response;
+  },
+  (error) => {
+    const errorInfo = {
+      url: error.config?.url || 'inconnu',
+      method: error.config?.method?.toUpperCase() || 'INCONNU',
+      status: error.response?.status || 'aucun status',
+      statusText: error.response?.statusText || 'aucun status text',
+      data: error.response?.data || 'aucune donnée',
+      message: error.message
+    };
+    
+    console.error(`[API] Erreur ${errorInfo.method} ${errorInfo.url}:`, errorInfo);
+    
+    // Gestion spéciale des erreurs réseau
+    if (!error.response) {
+      console.error('[API] Erreur réseau - Le serveur pourrait être arrêté ou inaccessible');
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
+// Fonction utilitaire pour extraire les messages d'erreur
+const extractErrorMessage = (error: any): string => {
+  // Erreur réseau
+  if (!error.response) {
+    return 'Impossible de contacter le serveur. Vérifiez que le serveur Django est démarré.';
+  }
+  
+  const { status, data } = error.response;
+  
+  // Erreurs serveur (5xx)
+  if (status >= 500) {
+    console.error('Détails erreur serveur:', {
+      status,
+      statusText: error.response.statusText,
+      data,
+      headers: error.response.headers
+    });
+    return `Erreur serveur (${status}). Vérifiez les logs du serveur Django.`;
+  }
+  
+  // Erreur 404
+  if (status === 404) {
+    return 'Endpoint non trouvé. Vérifiez la configuration des URLs Django.';
+  }
+  
+  // Erreurs client (4xx)
+  if (status >= 400) {
+    if (typeof data === 'string') {
+      return data;
+    }
+    
+    if (data && typeof data === 'object') {
+      // Formats d'erreur Django REST Framework
+      if (data.detail) return data.detail;
+      if (data.error) return data.error;
+      if (data.message) return data.message;
+      
+      // Erreurs de champs spécifiques
+      if (data.email) {
+        const emailError = Array.isArray(data.email) ? data.email[0] : data.email;
+        return `Email: ${emailError}`;
+      }
+      if (data.username) {
+        const usernameError = Array.isArray(data.username) ? data.username[0] : data.username;
+        return `Nom d'utilisateur: ${usernameError}`;
+      }
+      if (data.password) {
+        const passwordError = Array.isArray(data.password) ? data.password[0] : data.password;
+        return `Mot de passe: ${passwordError}`;
+      }
+      if (data.non_field_errors) {
+        const nonFieldError = Array.isArray(data.non_field_errors) ? data.non_field_errors[0] : data.non_field_errors;
+        return nonFieldError;
+      }
+      
+      // Première erreur trouvée
+      const firstKey = Object.keys(data)[0];
+      if (firstKey && data[firstKey]) {
+        const errorValue = Array.isArray(data[firstKey]) ? data[firstKey][0] : data[firstKey];
+        return `${firstKey}: ${errorValue}`;
+      }
+    }
+  }
+  
+  return 'Une erreur inattendue s\'est produite.';
+};
+
+// Service d'authentification avec les bons endpoints
 export const authService = {
+  // Test de connectivité
+  testConnection: async () => {
+    try {
+      console.log('[API] Test de connexion au serveur...');
+      // Tentative de connexion à un endpoint connu
+      const response = await api.options('/workflows/auth/login/');
+      console.log('[API] Test de connexion réussi');
+      return { success: true, message: 'Serveur accessible' };
+    } catch (error) {
+      console.error('[API] Test de connexion échoué:', error);
+      return { 
+        success: false, 
+        error: extractErrorMessage(error),
+        details: error
+      };
+    }
+  },
+
   // Inscription
   register: async (userData: {
-    first_name: string;
-    last_name: string;
+    username: string;
     email: string;
     password: string;
     password2: string;
   }) => {
     try {
-      // Afficher les données pour le débogage (sans le mot de passe)
-      console.log('Envoi des données d\'inscription:', {
-        first_name: userData.first_name,
-        last_name: userData.last_name,
-        email: userData.email,
-        password: '********'
-      });
+      console.log('[AUTH] Début de l\'inscription...');
       
-      // Envoi de la requête
+      // Validation côté client
+      if (!userData.username || !userData.email || !userData.password || !userData.password2) {
+        throw new Error('Tous les champs sont requis');
+      }
+      
+      if (userData.password !== userData.password2) {
+        throw new Error('Les mots de passe ne correspondent pas');
+      }
+      
+      // Validation email basique
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(userData.email)) {
+        throw new Error('Format d\'email invalide');
+      }
+      
+      // Envoi de la requête d'inscription
       const response = await api.post('/workflows/auth/register/', userData);
       
-      // Si succès, stockage du token
+      // Gestion de la réponse
       if (response.data && response.data.token) {
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
+        console.log('[AUTH] Inscription réussie');
+      } else {
+        console.warn('[AUTH] Réponse d\'inscription sans token:', response.data);
       }
       
       return response.data;
-    } catch (error) {
-      // Afficher l'erreur pour le débogage
-      console.error('Erreur brute:', error);
-      
-      // Gérer spécifiquement les erreurs
-      if (axios.isAxiosError(error)) {
-        if (error.response?.status === 500) {
-          console.error('Erreur serveur 500:', error.response.data);
-          throw { error: "Une erreur serveur s'est produite. Veuillez réessayer plus tard." };
-        }
-        
-        if (error.response?.data) {
-          console.error('Détails de l\'erreur:', error.response.data);
-          
-          // Traiter les différents formats d'erreur possibles
-          if (typeof error.response.data === 'string') {
-            throw { error: error.response.data };
-          }
-          
-          if (error.response.data.error) {
-            throw { error: error.response.data.error };
-          }
-          
-          if (error.response.data.email) {
-            throw { error: `Email: ${error.response.data.email}` };
-          }
-          
-          if (error.response.data.username) {
-            throw { error: `Username: ${error.response.data.username}` };
-          }
-          
-          if (error.response.data.password) {
-            throw { error: `Password: ${error.response.data.password}` };
-          }
-          
-          throw error.response.data;
-        }
-      }
-      
-      // Erreur générique
-      throw { error: 'Une erreur est survenue lors de l\'inscription' };
+    } catch (error: any) {
+      console.error('[AUTH] Erreur d\'inscription:', error);
+      throw new Error(extractErrorMessage(error));
     }
   },
 
   // Connexion
   login: async (credentials: { email: string; password: string }) => {
     try {
-      console.log('Tentative de connexion:', { email: credentials.email, password: '********' });
+      console.log('[AUTH] Début de la connexion...');
+      
+      // Validation des données
+      if (!credentials.email || !credentials.password) {
+        throw new Error('Email et mot de passe requis');
+      }
+      
+      // Validation du format email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(credentials.email)) {
+        throw new Error('Format d\'email invalide');
+      }
+      
+      // Envoi de la requête de connexion avec l'URL correcte
       const response = await api.post('/workflows/auth/login/', credentials);
       
-      // Si succès, stockage du token
+      // Gestion de la réponse
       if (response.data && response.data.token) {
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
+        console.log('[AUTH] Connexion réussie');
+      } else {
+        console.warn('[AUTH] Réponse de connexion sans token:', response.data);
+        throw new Error('Réponse du serveur invalide - token manquant');
       }
       
       return response.data;
-    } catch (error) {
-      console.error('Erreur de connexion:', error);
-      
-      if (axios.isAxiosError(error)) {
-        if (error.response?.status === 500) {
-          throw { error: "Une erreur serveur s'est produite. Veuillez réessayer plus tard." };
-        }
-        
-        if (error.response?.data) {
-          if (typeof error.response.data === 'string') {
-            throw { error: error.response.data };
-          }
-          
-          if (error.response.data.error) {
-            throw { error: error.response.data.error };
-          }
-          
-          if (error.response.data.email) {
-            throw { error: `Email: ${error.response.data.email}` };
-          }
-          
-          if (error.response.data.non_field_errors) {
-            throw { error: error.response.data.non_field_errors[0] };
-          }
-          
-          throw error.response.data;
-        }
-      }
-      
-      throw { error: 'Une erreur est survenue lors de la connexion' };
+    } catch (error: any) {
+      console.error('[AUTH] Erreur de connexion:', error);
+      throw new Error(extractErrorMessage(error));
     }
   },
 
   // Déconnexion
   logout: async () => {
     try {
+      console.log('[AUTH] Début de la déconnexion...');
       await api.post('/workflows/auth/logout/');
+      console.log('[AUTH] Déconnexion réussie');
     } catch (error) {
-      console.error('Erreur de déconnexion:', error);
+      console.error('[AUTH] Erreur de déconnexion (non critique):', error);
     } finally {
+      // Nettoyage du stockage local dans tous les cas
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      console.log('[AUTH] Stockage local nettoyé');
     }
   },
 
-  // Vérification d'authentification
+  // Vérification de l'authentification
   isAuthenticated: () => {
-    return typeof window !== 'undefined' && Boolean(localStorage.getItem('token'));
+    if (typeof window === 'undefined') return false;
+    
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    
+    if (!token || !user) {
+      return false;
+    }
+    
+    // Vérification de la validité des données utilisateur
+    try {
+      JSON.parse(user);
+      return true;
+    } catch (error) {
+      console.error('[AUTH] Données utilisateur invalides dans localStorage:', error);
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      return false;
+    }
   },
 
-  // Récupération de l'utilisateur
+  // Récupération de l'utilisateur actuel
   getCurrentUser: () => {
-    if (typeof window !== 'undefined') {
-      const userStr = localStorage.getItem('user');
-      if (userStr) {
-        try {
-          return JSON.parse(userStr);
-        } catch (error) {
-          localStorage.removeItem('user');
-          return null;
-        }
-      }
+    if (typeof window === 'undefined') return null;
+    
+    const userStr = localStorage.getItem('user');
+    if (!userStr) return null;
+    
+    try {
+      return JSON.parse(userStr);
+    } catch (error) {
+      console.error('[AUTH] Erreur lors de l\'analyse des données utilisateur:', error);
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      return null;
     }
-    return null;
+  },
+
+  // Rafraîchissement du token (si votre backend le supporte)
+  refreshToken: async () => {
+    try {
+      const response = await api.post('/workflows/auth/refresh/');
+      if (response.data && response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        return response.data;
+      }
+    } catch (error) {
+      console.error('[AUTH] Échec du rafraîchissement du token:', error);
+      // Nettoyage du token invalide
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      throw error;
+    }
   }
 };
 
@@ -689,6 +809,212 @@ export const volunteerTaskService = {
         throw { error: 'Une erreur est survenue lors du marquage de l\'assignation comme échouée' };
       }
     }
+  }
+};
+
+
+// Service WebSocket
+export const websocketService = {
+  // URL de base WebSocket
+  WS_BASE_URL: 'ws://127.0.0.1:8000/ws/workflows/',
+
+  // Créer une connexion WebSocket avec authentification
+  connect: (token: string) => {
+    const wsUrl = `${websocketService.WS_BASE_URL}?token=${encodeURIComponent(token)}`;
+    return new WebSocket(wsUrl);
+  },
+
+  // Vérifier l'état de la connexion WebSocket
+  isConnected: (ws: WebSocket | null): boolean => {
+    return ws !== null && ws.readyState === WebSocket.OPEN;
+  },
+
+  // Envoyer un message via WebSocket
+  send: (ws: WebSocket, message: any) => {
+    if (websocketService.isConnected(ws)) {
+      ws.send(JSON.stringify(message));
+      return true;
+    }
+    console.warn('WebSocket non connecté, impossible d\'envoyer le message');
+    return false;
+  },
+
+  // S'abonner aux mises à jour d'un workflow
+  subscribeToWorkflow: (ws: WebSocket, workflowId: string) => {
+    return websocketService.send(ws, {
+      type: 'subscribe_workflow',
+      workflow_id: workflowId
+    });
+  },
+
+  // S'abonner aux mises à jour d'une tâche
+  subscribeToTask: (ws: WebSocket, taskId: string) => {
+    return websocketService.send(ws, {
+      type: 'subscribe_task',
+      task_id: taskId
+    });
+  },
+
+  // S'abonner aux mises à jour d'un volontaire
+  subscribeToVolunteer: (ws: WebSocket, volunteerId: string) => {
+    return websocketService.send(ws, {
+      type: 'subscribe_volunteer',
+      volunteer_id: volunteerId
+    });
+  },
+
+  // Envoyer un ping
+  ping: (ws: WebSocket) => {
+    return websocketService.send(ws, { type: 'ping' });
+  },
+
+  // Gestionnaire de messages générique
+  handleMessage: (event: MessageEvent, callbacks: {
+    onWorkflowUpdate?: (data: any) => void;
+    onWorkflowStatusChange?: (data: any) => void;
+    onTaskUpdate?: (data: any) => void;
+    onTaskProgress?: (data: any) => void;
+    onVolunteerUpdate?: (data: any) => void;
+    onVolunteerStatus?: (data: any) => void;
+    onError?: (data: any) => void;
+  }) => {
+    try {
+      const data = JSON.parse(event.data);
+      
+      switch (data.type) {
+        case 'workflow_update':
+          callbacks.onWorkflowUpdate?.(data);
+          break;
+        case 'workflow_status_change':
+          callbacks.onWorkflowStatusChange?.(data);
+          break;
+        case 'task_update':
+          callbacks.onTaskUpdate?.(data);
+          break;
+        case 'task_progress':
+          callbacks.onTaskProgress?.(data);
+          break;
+        case 'volunteer_update':
+          callbacks.onVolunteerUpdate?.(data);
+          break;
+        case 'volunteer_status':
+          callbacks.onVolunteerStatus?.(data);
+          break;
+        case 'error':
+          callbacks.onError?.(data);
+          break;
+        default:
+          console.log('Message WebSocket non géré:', data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du parsing du message WebSocket:', error);
+      callbacks.onError?.({ type: 'parse_error', message: error });
+    }
+  },
+
+  // Créer une connexion WebSocket avec gestionnaires automatiques
+  createConnection: (token: string, callbacks: {
+    onConnect?: () => void;
+    onDisconnect?: () => void;
+    onError?: (error: Event) => void;
+    onWorkflowUpdate?: (data: any) => void;
+    onWorkflowStatusChange?: (data: any) => void;
+    onTaskUpdate?: (data: any) => void;
+    onTaskProgress?: (data: any) => void;
+    onVolunteerUpdate?: (data: any) => void;
+    onVolunteerStatus?: (data: any) => void;
+  }) => {
+    const ws = websocketService.connect(token);
+    
+    ws.onopen = () => {
+      console.log('WebSocket connecté');
+      callbacks.onConnect?.();
+    };
+    
+    ws.onclose = () => {
+      console.log('WebSocket fermé');
+      callbacks.onDisconnect?.();
+    };
+    
+    ws.onerror = (error) => {
+      console.error('Erreur WebSocket:', error);
+      callbacks.onError?.(error);
+    };
+    
+    ws.onmessage = (event) => {
+      websocketService.handleMessage(event, callbacks);
+    };
+    
+    return ws;
+  },
+
+  // Classe utilitaire pour gérer une connexion WebSocket
+  createManager: (token: string) => {
+    let ws: WebSocket | null = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+    const reconnectDelay = 1000;
+
+    return {
+      connect: (callbacks: any) => {
+        ws = websocketService.createConnection(token, {
+          ...callbacks,
+          onDisconnect: () => {
+            callbacks.onDisconnect?.();
+            
+            // Reconnexion automatique
+            if (reconnectAttempts < maxReconnectAttempts) {
+              reconnectAttempts++;
+              setTimeout(() => {
+                if (ws && ws.readyState === WebSocket.CLOSED) {
+                  ws = websocketService.createConnection(token, callbacks);
+                }
+              }, reconnectDelay * reconnectAttempts);
+            }
+          },
+          onConnect: () => {
+            reconnectAttempts = 0;
+            callbacks.onConnect?.();
+          }
+        });
+        return ws;
+      },
+      
+      disconnect: () => {
+        if (ws) {
+          ws.close();
+          ws = null;
+        }
+      },
+      
+      send: (message: any) => {
+        return ws ? websocketService.send(ws, message) : false;
+      },
+      
+      subscribeToWorkflow: (workflowId: string) => {
+        return ws ? websocketService.subscribeToWorkflow(ws, workflowId) : false;
+      },
+      
+      subscribeToTask: (taskId: string) => {
+        return ws ? websocketService.subscribeToTask(ws, taskId) : false;
+      },
+      
+      subscribeToVolunteer: (volunteerId: string) => {
+        return ws ? websocketService.subscribeToVolunteer(ws, volunteerId) : false;
+      },
+      
+      ping: () => {
+        return ws ? websocketService.ping(ws) : false;
+      },
+      
+      isConnected: () => {
+        return ws ? websocketService.isConnected(ws) : false;
+      },
+      
+      getReadyState: () => {
+        return ws ? ws.readyState : WebSocket.CLOSED;
+      }
+    };
   }
 };
 

@@ -357,7 +357,7 @@ def manager_login_handler(channel: str, message: Message):
 
 # Gestionnaires pour l'authentification des volontaires
 
-def volunteer_registration_handler(channel: str, message: Message):
+def volunteer_registration_handler(message: Message):
     """
     Gestionnaire pour l'enregistrement des volontaires.
     

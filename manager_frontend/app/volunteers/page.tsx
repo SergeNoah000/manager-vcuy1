@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { volunteerService } from '@/lib/api';
 import { Volunteer } from '../../lib/types';
 import Link from 'next/link';
+import { ProfileModal } from '@/components/ProfileModal';
 
 export default function VolunteersPage() {
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
@@ -115,6 +116,7 @@ export default function VolunteersPage() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
+                Tasks
               </Link>
               
         
@@ -122,15 +124,7 @@ export default function VolunteersPage() {
             
             <div className="flex items-center space-x-3 mt-2 sm:mt-0">
               <span className="text-white text-sm hidden md:inline-block">Plateforme de gestion de workflows distribués</span>
-              <Link
-                href="/profile"
-                className="inline-flex items-center px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white text-sm font-medium rounded-full transition-colors duration-200"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                Profil
-              </Link>
+             <ProfileModal />
             </div>
           </div>
         </div>
@@ -206,7 +200,13 @@ export default function VolunteersPage() {
                   </tr>
                 ) : (
                   volunteers.map((volunteer) => {
-                    const statusStyle = statusColors[volunteer.status as keyof typeof statusColors];
+                    const statusStyle = statusColors[volunteer.status as keyof typeof statusColors] || {
+                      bg: 'bg-gray-200',
+                      text: 'text-gray-800',
+                      border: 'border-gray-300',
+                      icon: '❔'
+                    };
+                    
                     
                     return (
                       <tr key={volunteer.id} className="hover:bg-indigo-50 transition-colors duration-150">
