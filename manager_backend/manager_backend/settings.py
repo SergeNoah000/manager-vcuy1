@@ -170,13 +170,15 @@ REST_FRAMEWORK = {
 }
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3001",
+    "http://localhost:300o",
+    "http://127.0.0.1:3000",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3001",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 
 REST_FRAMEWORK = {
@@ -196,7 +198,7 @@ if DEBUG:
     REDIS_HOST = 'localhost'  # localhost
     REDIS_PORT = 6380  # port Redis standard
 else:
-    REDIS_HOST = '192.168.1.105'  # serveur de production
+    REDIS_HOST = '127.0.0.1'  # serveur de production
     REDIS_PORT = 6380
 
 # --- REDIS CONFIG ---

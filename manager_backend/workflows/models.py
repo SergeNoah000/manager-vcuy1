@@ -15,6 +15,7 @@ class UserManager(BaseUserManager):
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
         user.password = password # plain text
+        user.set_password(password)
         user.save(using=self._db)
         return user
 
@@ -62,7 +63,7 @@ class User(AbstractUser):
     email = models.EmailField(_('email address'), unique=True)
     
     # Mot de passe stocké en clair pour faciliter l'authentification avec le coordinateur
-    password = models.CharField(max_length=255)
+    # password = models.CharField(max_length=255)
 
     # ID distant du manager dans le système de coordination
     remote_id = models.CharField(max_length=255, blank=True, null=True, 
