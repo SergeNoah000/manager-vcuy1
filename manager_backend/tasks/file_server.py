@@ -90,6 +90,28 @@ def start_file_server(workflow: Workflow, port: int = 0) -> int:
     logger.info(f"Serveur de fichiers démarré pour le workflow {workflow_id} sur le port {server_port}")
     return server_port
 
+def get_file_server_url(workflow_id: str) -> Optional[str]:
+    """
+    Récupère l'URL du serveur de fichiers pour un workflow spécifique.
+    
+    Args:
+        workflow_id: ID du workflow
+        
+    Returns:
+        URL du serveur de fichiers si trouvé, None sinon
+    """
+    if workflow_id not in active_servers:
+        logger.warning(f"Aucun serveur de fichiers en cours pour le workflow {workflow_id}")
+        return None
+    
+    # Récupérer l'adresse IP et le port du serveur
+    import socket
+    hostname = socket.gethostname()
+    ip_address = socket.gethostbyname(hostname)
+    port = active_servers[workflow_id]['port']
+    
+    return f"http://{ip_address}:{port}"
+
 def stop_file_server(workflow_id: str) -> bool:
     """
     Arrête le serveur de fichiers pour un workflow spécifique.

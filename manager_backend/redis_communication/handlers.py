@@ -392,6 +392,24 @@ def volunteer_registration_handler(channel: str, message: Message):
 def default_handler(channel: str, message: Message):
     logger.warning(f" (default_handler) - Message reçu sur le canal {channel}: {message}")
 
+def handle_task_assignment_response_wrapper(channel: str, message: Message):
+    """
+    Wrapper pour le gestionnaire de réponses aux demandes de réassignation de tâches.
+    Importe le gestionnaire réel à partir du module tasks.reassignment_handlers.
+    
+    Args:
+        channel: Canal sur lequel le message a été reçu
+        message: Message reçu
+    """
+    try:
+        from tasks.reassignment_handlers import handle_task_assignment_response
+        return handle_task_assignment_response(channel, message)
+    except Exception as e:
+        logger.error(f"Erreur lors de l'appel au gestionnaire de réponses aux demandes de réassignation de tâches: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return False
+
 # Dictionnaire des gestionnaires par défaut
 DEFAULT_HANDLERS = {
     # Canaux génériques
@@ -399,6 +417,6 @@ DEFAULT_HANDLERS = {
     "coord/emergency": error_handler,
     "system/error": error_handler,
     
-    
-    
+    # Canaux de réassignation de tâches
+    "task/assignment/response": lambda channel, message: handle_task_assignment_response_wrapper(channel, message),
 }

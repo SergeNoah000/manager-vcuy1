@@ -7,7 +7,6 @@ import json
 import logging
 from typing import Dict, Any, Optional
 import jwt
-from django.conf import settings
 from .exceptions import NoLoginError
 logger = logging.getLogger(__name__)
 
@@ -23,6 +22,7 @@ def generate_token(client_id: str, client_type: str, expiration_hours: int = 24)
     Returns:
         str: Token JWT
     """
+    from django.conf import settings
     secret_key = getattr(settings, 'SECRET_KEY', 'default-secret-key')
     
     payload = {
@@ -44,6 +44,7 @@ def verify_token(token: str) -> Optional[Dict[str, Any]]:
     Returns:
         Dict ou None: Payload du token si valide, None sinon
     """
+    from django.conf import settings
     secret_key = getattr(settings, 'SECRET_KEY', 'default-secret-key')
     
     try:

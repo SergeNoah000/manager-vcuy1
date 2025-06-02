@@ -384,6 +384,75 @@ def handle_task_status(channel: str, message: Message):
             task.end_date = timezone.now()
             task.save()
             logger.info(f"Tâche {task.name} a échoué sur le volontaire {volunteer.name}")
+            
+            # Vérifier le type d'erreur
+            error_type = data.get('error_type', 'unknown')
+            error_message = data.get('error_message', '')
+            
+            logger.info(f"Type d'erreur: {error_type}, Message: {error_message}")
+            
+            # Gérer différemment selon le type d'erreur
+            if error_type.lower() == 'docker':
+                # Ignorer les erreurs Docker, elles sont généralement temporaires
+                # ou liées à l'infrastructure et non à la tâche elle-même
+                logger.info(f"Erreur Docker ignorée pour la tâche {task.name}")
+                
+            elif error_type.lower() in ['user_pause', 'user_stop']:
+                # Erreur due à une pause ou un arrêt utilisateur
+                # Attendre 1 minute puis demander une nouvelle attribution
+                logger.info(f"Erreur due à une pause/arrêt utilisateur pour la tâche {task.name}. Planification d'une réassignation.")
+                
+                # Importer le module pour les tâches asynchrones
+                import threading
+                import time
+                
+                def request_reassignment():
+                    # Attendre 1 minute
+                    time.sleep(60)
+                    
+                    logger.info(f"Demande de réassignation pour la tâche {task.name} après pause/arrêt utilisateur")
+                    
+                    # Récupérer les ressources estimées pour la tâche
+                    estimated_resources = {
+                        'cpu_cores': task.cpu_cores,
+                        'ram': task.ram,
+                        'gpu_required': task.gpu_required,
+                        'gpu_memory': task.gpu_memory,
+                        'storage': task.storage
+                    }
+                    
+                    # Demander une nouvelle attribution au coordinateur
+                    from redis_communication.client import RedisClient
+                    from redis_communication.utils import get_manager_login_token
+                    import uuid
+                    
+                    redis_client = RedisClient.get_instance()
+                    
+                    redis_client.publish(
+                        'task/reassignment',
+                        {
+                            'task_id': str(task.id),
+                            'workflow_id': str(workflow.id),
+                            'estimated_resources': estimated_resources,
+                            'manager_id': str(workflow.owner.remote_id) if hasattr(workflow, 'owner') and workflow.owner else None,
+                            'timestamp': timezone.now().isoformat()
+                        },
+                        str(uuid.uuid4()),
+                        get_manager_login_token(),
+                        'request'
+                    )
+                    
+                    logger.info(f"Demande de réassignation envoyée pour la tâche {task.name}")
+                
+                # Lancer la demande de réassignation dans un thread séparé
+                reassignment_thread = threading.Thread(target=request_reassignment)
+                reassignment_thread.daemon = True
+                reassignment_thread.start()
+                
+            else:
+                # Autres types d'erreurs
+                logger.error(f"Erreur non gérée pour la tâche {task.name}: {error_type} - {error_message}")
+                # On pourrait implémenter d'autres stratégies de gestion d'erreurs ici
         
         return True
 

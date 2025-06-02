@@ -169,7 +169,8 @@ def submit_workflow_handler(workflow_id: str, callback: Optional[Callable[[Dict[
             'workflow/submit', 
             data, 
             request_id=request_id,
-            token=token
+            token=token,
+            message_type="request"
         )
         start_time = time.time()
         while time.time() - start_time < timeout:
