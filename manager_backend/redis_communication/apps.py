@@ -1,7 +1,6 @@
 """
 Configuration de l'application Django pour le module de communication Redis.
 """
-
 from django.apps import AppConfig
 import logging
 import sys
