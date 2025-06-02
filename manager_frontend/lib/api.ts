@@ -690,4 +690,210 @@ export const volunteerTaskService = {
   }
 };
 
+
+// Service WebSocket
+export const websocketService = {
+  // URL de base WebSocket
+  WS_BASE_URL: 'ws://127.0.0.1:8000/ws/workflows/',
+
+  // Créer une connexion WebSocket avec authentification
+  connect: (token: string) => {
+    const wsUrl = `${websocketService.WS_BASE_URL}?token=${encodeURIComponent(token)}`;
+    return new WebSocket(wsUrl);
+  },
+
+  // Vérifier l'état de la connexion WebSocket
+  isConnected: (ws: WebSocket | null): boolean => {
+    return ws !== null && ws.readyState === WebSocket.OPEN;
+  },
+
+  // Envoyer un message via WebSocket
+  send: (ws: WebSocket, message: any) => {
+    if (websocketService.isConnected(ws)) {
+      ws.send(JSON.stringify(message));
+      return true;
+    }
+    console.warn('WebSocket non connecté, impossible d\'envoyer le message');
+    return false;
+  },
+
+  // S'abonner aux mises à jour d'un workflow
+  subscribeToWorkflow: (ws: WebSocket, workflowId: string) => {
+    return websocketService.send(ws, {
+      type: 'subscribe_workflow',
+      workflow_id: workflowId
+    });
+  },
+
+  // S'abonner aux mises à jour d'une tâche
+  subscribeToTask: (ws: WebSocket, taskId: string) => {
+    return websocketService.send(ws, {
+      type: 'subscribe_task',
+      task_id: taskId
+    });
+  },
+
+  // S'abonner aux mises à jour d'un volontaire
+  subscribeToVolunteer: (ws: WebSocket, volunteerId: string) => {
+    return websocketService.send(ws, {
+      type: 'subscribe_volunteer',
+      volunteer_id: volunteerId
+    });
+  },
+
+  // Envoyer un ping
+  ping: (ws: WebSocket) => {
+    return websocketService.send(ws, { type: 'ping' });
+  },
+
+  // Gestionnaire de messages générique
+  handleMessage: (event: MessageEvent, callbacks: {
+    onWorkflowUpdate?: (data: any) => void;
+    onWorkflowStatusChange?: (data: any) => void;
+    onTaskUpdate?: (data: any) => void;
+    onTaskProgress?: (data: any) => void;
+    onVolunteerUpdate?: (data: any) => void;
+    onVolunteerStatus?: (data: any) => void;
+    onError?: (data: any) => void;
+  }) => {
+    try {
+      const data = JSON.parse(event.data);
+      
+      switch (data.type) {
+        case 'workflow_update':
+          callbacks.onWorkflowUpdate?.(data);
+          break;
+        case 'workflow_status_change':
+          callbacks.onWorkflowStatusChange?.(data);
+          break;
+        case 'task_update':
+          callbacks.onTaskUpdate?.(data);
+          break;
+        case 'task_progress':
+          callbacks.onTaskProgress?.(data);
+          break;
+        case 'volunteer_update':
+          callbacks.onVolunteerUpdate?.(data);
+          break;
+        case 'volunteer_status':
+          callbacks.onVolunteerStatus?.(data);
+          break;
+        case 'error':
+          callbacks.onError?.(data);
+          break;
+        default:
+          console.log('Message WebSocket non géré:', data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du parsing du message WebSocket:', error);
+      callbacks.onError?.({ type: 'parse_error', message: error });
+    }
+  },
+
+  // Créer une connexion WebSocket avec gestionnaires automatiques
+  createConnection: (token: string, callbacks: {
+    onConnect?: () => void;
+    onDisconnect?: () => void;
+    onError?: (error: Event) => void;
+    onWorkflowUpdate?: (data: any) => void;
+    onWorkflowStatusChange?: (data: any) => void;
+    onTaskUpdate?: (data: any) => void;
+    onTaskProgress?: (data: any) => void;
+    onVolunteerUpdate?: (data: any) => void;
+    onVolunteerStatus?: (data: any) => void;
+  }) => {
+    const ws = websocketService.connect(token);
+    
+    ws.onopen = () => {
+      console.log('WebSocket connecté');
+      callbacks.onConnect?.();
+    };
+    
+    ws.onclose = () => {
+      console.log('WebSocket fermé');
+      callbacks.onDisconnect?.();
+    };
+    
+    ws.onerror = (error) => {
+      console.error('Erreur WebSocket:', error);
+      callbacks.onError?.(error);
+    };
+    
+    ws.onmessage = (event) => {
+      websocketService.handleMessage(event, callbacks);
+    };
+    
+    return ws;
+  },
+
+  // Classe utilitaire pour gérer une connexion WebSocket
+  createManager: (token: string) => {
+    let ws: WebSocket | null = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+    const reconnectDelay = 1000;
+
+    return {
+      connect: (callbacks: any) => {
+        ws = websocketService.createConnection(token, {
+          ...callbacks,
+          onDisconnect: () => {
+            callbacks.onDisconnect?.();
+            
+            // Reconnexion automatique
+            if (reconnectAttempts < maxReconnectAttempts) {
+              reconnectAttempts++;
+              setTimeout(() => {
+                if (ws && ws.readyState === WebSocket.CLOSED) {
+                  ws = websocketService.createConnection(token, callbacks);
+                }
+              }, reconnectDelay * reconnectAttempts);
+            }
+          },
+          onConnect: () => {
+            reconnectAttempts = 0;
+            callbacks.onConnect?.();
+          }
+        });
+        return ws;
+      },
+      
+      disconnect: () => {
+        if (ws) {
+          ws.close();
+          ws = null;
+        }
+      },
+      
+      send: (message: any) => {
+        return ws ? websocketService.send(ws, message) : false;
+      },
+      
+      subscribeToWorkflow: (workflowId: string) => {
+        return ws ? websocketService.subscribeToWorkflow(ws, workflowId) : false;
+      },
+      
+      subscribeToTask: (taskId: string) => {
+        return ws ? websocketService.subscribeToTask(ws, taskId) : false;
+      },
+      
+      subscribeToVolunteer: (volunteerId: string) => {
+        return ws ? websocketService.subscribeToVolunteer(ws, volunteerId) : false;
+      },
+      
+      ping: () => {
+        return ws ? websocketService.ping(ws) : false;
+      },
+      
+      isConnected: () => {
+        return ws ? websocketService.isConnected(ws) : false;
+      },
+      
+      getReadyState: () => {
+        return ws ? ws.readyState : WebSocket.CLOSED;
+      }
+    };
+  }
+};
+
 export default api;
