@@ -6,7 +6,8 @@ import { authService } from '@/lib/api';
 
 interface User {
   id: string;
-  username: string;
+  first_name: string;
+  last_name: string;
   email: string;
 }
 
@@ -15,7 +16,7 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (userData: { username: string; email: string; password: string; password2: string }) => Promise<void>;
+  register: (userData: { first_name: string; last_name: string; email: string; password: string; password2: string }) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   clearError: () => void;
@@ -99,18 +100,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Fonction d'inscription avec meilleure gestion d'erreur
-  const register = async (userData: { username: string; email: string; password: string; password2: string }) => {
+  const register = async (userData: { first_name: string; last_name: string; email: string; password: string; password2: string }) => {
     setLoading(true);
     setError(null);
     
     try {
       console.log('[Auth] Tentative d\'inscription avec:', { 
         email: userData.email, 
-        username: userData.username,
+        first_name: userData.first_name,
+        last_name: userData.last_name,
         password: '****'
       });
       
-      const data = await authService.register(userData);
+      const data = await authService.register({
+        first_name: userData.first_name,
+        last_name: userData.last_name,
+        email: userData.email,
+        password: userData.password,
+        password2: userData.password2
+      });
       console.log('[Auth] Inscription réussie:', data);
       
       if (data && data.user) {

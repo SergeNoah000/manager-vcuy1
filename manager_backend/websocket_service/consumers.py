@@ -35,7 +35,8 @@ class WorkflowConsumer(AsyncWebsocketConsumer):
         if token_key:
             try:
                 token = await database_sync_to_async(Token.objects.get)(key=token_key)
-                self.user = token.user
+                user = await database_sync_to_async(lambda t: t.user)(token)
+                self.user = user
             except Token.DoesNotExist:
                 logger.warning(f"Token WebSocket invalide: {token_key}")
                 await self.close()
@@ -62,8 +63,8 @@ class WorkflowConsumer(AsyncWebsocketConsumer):
         # Envoyer confirmation de connexion
         await self.send(text_data=json.dumps({
             'type': 'connection_established',
-            'user_id': self.user.id,
-            'username': self.user.username,
+            'user_id': str(self.user.id),
+            'username': str(self.user.username),
             'message': 'Connexion WebSocket établie'
         }))
         
@@ -152,6 +153,16 @@ class WorkflowConsumer(AsyncWebsocketConsumer):
             'action': event.get('action', 'updated'),
             'timestamp': event.get('timestamp')
         }))
+
+    async def workflow_status_change(self, event):
+        """Diffuser un changement de statut de workflow (handler manquant)."""
+        await self.send(text_data=json.dumps({
+            'type': 'workflow_status_change',
+            'workflow_id': event.get('workflow_id'),
+            'status': event.get('status'),
+            'message': event.get('message'),
+            'timestamp': event.get('timestamp')
+        }))
     
     async def task_update(self, event):
         """Diffuser une mise à jour de tâche."""
@@ -175,18 +186,22 @@ class WorkflowConsumer(AsyncWebsocketConsumer):
         """Diffuser une mise à jour de progression de tâche."""
         await self.send(text_data=json.dumps({
             'type': 'task_progress',
-            'task_id': event['task_id'],
-            'volunteer_id': event.get('volunteer_id'),
-            'progress': event['progress'],
+            'task_id': event.get('task_id'),
+            'volunteer': event.get('volunteer'),
+            'message': event.get('message'),
+            'workflow_id': event.get('workflow_id'),
+            'progress': event.get('progress'),
             'timestamp': event.get('timestamp')
         }))
     
-    async def volunteer_status(self, event):
-        """Diffuser une mise à jour de statut de volontaire."""
+    async def task_status_change(self, event):
+        """Diffuser une mise à jour de statut de tâche."""
         await self.send(text_data=json.dumps({
-            'type': 'volunteer_status',
-            'volunteer_id': event['volunteer_id'],
-            'status': event['status'],
-            'available': event.get('available'),
+            'type': 'task_status_change',
+            'workflow_id': event.get('workflow_id'),
+            'task_id': event.get('task_id'),
+            'status': event.get('status'),
+            'volunteer': event.get('volunteer'),
+            'message': event.get('message'),
             'timestamp': event.get('timestamp')
         }))

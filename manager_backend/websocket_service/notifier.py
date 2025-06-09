@@ -41,7 +41,6 @@ class WebSocketNotifier:
         }
         
         self._send_to_group('workflow_updates', message)
-        self._send_to_group(f"workflow_{workflow_data.get('id')}", message)
         logger.info(f"Notification WebSocket: workflow {workflow_data.get('id')} créé")
     
     def notify_workflow_updated(self, workflow_data: Dict[str, Any]):
@@ -279,17 +278,14 @@ class WebSocketNotifier:
     
     # Notifications génériques
     def notify_custom_event(self, event_type: str, data: Dict[str, Any], groups: list = None):
-        """Notifie un événement personnalisé."""
+        """Notifie un événement personnalisé (toujours sur 'workflow_updates')."""
+        # On aplatit le contenu pour que le frontend reçoive les clés attendues directement
         message = {
             'type': event_type,
-            'data': data,
+            **data,
             'timestamp': time.time()
         }
-        
-        target_groups = groups or ['workflow_updates']
-        for group in target_groups:
-            self._send_to_group(group, message)
-        
+        self._send_to_group('workflow_updates', message)
         logger.info(f"Notification WebSocket: événement personnalisé {event_type}")
 
 # Instance globale du notifier

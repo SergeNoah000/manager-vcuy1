@@ -158,7 +158,8 @@ export const authService = {
 
   // Inscription
   register: async (userData: {
-    username: string;
+    first_name: string;
+    last_name: string;
     email: string;
     password: string;
     password2: string;
@@ -167,7 +168,7 @@ export const authService = {
       console.log('[AUTH] Début de l\'inscription...');
       
       // Validation côté client
-      if (!userData.username || !userData.email || !userData.password || !userData.password2) {
+      if (!userData.first_name || !userData.last_name || !userData.email || !userData.password || !userData.password2) {
         throw new Error('Tous les champs sont requis');
       }
       

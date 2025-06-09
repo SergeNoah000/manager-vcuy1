@@ -16,6 +16,12 @@ django.setup()
 
 # Import des routes WebSocket et middleware
 from websocket_service.routing import websocket_urlpatterns
+import logging
+
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+logger.info("ASGI: Initialisation de l'application Django")
 from websocket_service.middleware import TokenAuthMiddleware
 
 application = ProtocolTypeRouter({
@@ -26,3 +32,4 @@ application = ProtocolTypeRouter({
         )
     ),
 })
+

@@ -162,7 +162,18 @@ def handle_task_progress(channel: str, message: Message):
             # Mettre à jour le statut de l'assignation
             volunteer_task.progress = progress
             volunteer_task.save()
-            logger.info(f"Assignation mise à jour: tâche {task.name} en cours par le volontaire {volunteer.name}")
+            logger.info(f"Assignation mise à jour: tâche {task.name} en cours par le volontaire {volunteer.name}, progression: {progress}%")
+            
+            # Notifier la progression via WebSocket
+            from websocket_service.client import notify_event
+            notify_event('task_progress', {
+                'workflow_id': str(workflow.id),
+                'task_id': str(task.id),
+                'progress': progress,
+                'volunteer': volunteer.name,
+                'message': f"Progression de la tâche {task.name}: {progress}%"
+            })
+            
             return True
 
         else:
@@ -234,6 +245,16 @@ def handle_task_status(channel: str, message: Message):
         if status.lower() == 'completed':
             # La tâche est terminée, télécharger les fichiers de sortie
             logger.info(f"Tâche {task.name} terminée par le volontaire {volunteer.name}, téléchargement des fichiers de sortie")
+
+            # Notifier le changement de statut via WebSocket
+            from websocket_service.client import notify_event
+            notify_event('task_status_change', {
+                'workflow_id': str(workflow.id),
+                'task_id': str(task.id),
+                'status': 'COMPLETED',
+                'volunteer': volunteer.name,
+                'message': f"Tâche {task.name} terminée par {volunteer.name}"
+            })
             
             # Vérifier si les informations du serveur de fichiers sont disponibles
             if 'file_server' in data:
@@ -329,6 +350,15 @@ def handle_task_status(channel: str, message: Message):
                             
                             logger.info(f"Workflow {workflow.name} terminé avec succès, fichiers téléchargés")
 
+                            # Notifier le changement de statut via WebSocket
+                            
+                            from websocket_service.client import notify_event
+                            notify_event('workflow_status_change', {
+                                'workflow_id': str(workflow.id),
+                                'status': 'terminated',
+                                'message': f"Workflow {workflow.name} terminé avec succès"
+                            })
+                            
                             # Lancer l'agregation des résultats
                             from workflows.models import WorkflowType
                             if workflow.workflow_type == WorkflowType.ML_TRAINING:
@@ -348,7 +378,7 @@ def handle_task_status(channel: str, message: Message):
                                 logger.info(f"Fichiers de sortie supprimés")
                         
                         else:
-                            logger.info(f"Taches terminées: {terminated_tasks}/{workflow.tasks.count()}")
+                            logger.info(f"Taches terminées: {all_tasks_completed}/{workflow.tasks.count()}")
 
                                 
 
@@ -360,18 +390,54 @@ def handle_task_status(channel: str, message: Message):
                 logger.error(f"Aucune information de serveur de fichiers dans le message de statut pour la tâche {task.name}")
         
         elif status.lower() == 'paused':
+
+            # Notifier le changement de statut via WebSocket
+            from websocket_service.client import notify_event
+            notify_event('task_status_change', {
+                'workflow_id': str(workflow.id),
+                'task_id': str(task.id),
+                'status': 'paused',
+                'volunteer': volunteer.name,
+                'message': f"Tâche {task.name} mise en pause par {volunteer.name}"
+            })
+            
             # La tâche est en pause
             task.status = 'paused'
             task.save()
             logger.info(f"Tâche {task.name} mise en pause par le volontaire {volunteer.name}")
         
         elif status.lower() == 'progress':
+
+            # Notifier le changement de statut via WebSocket
+            from websocket_service.client import notify_event
+            notify_event('task_status_change', {
+                'workflow_id': str(workflow.id),
+                'task_id': str(task.id),
+                'status': 'progress',
+                'volunteer': volunteer.name,
+                'message': f"Tâche {task.name} en cours d'exécution par {volunteer.name}"
+            })
+            
             # La tâche est en cours
             task.status = 'running'
             task.save()
             logger.info(f"Tâche {task.name} en cours d'exécution par le volontaire {volunteer.name}")
         
         elif status.lower() == 'stopped' or status.lower() == 'cancel':
+
+            # Notifier le changement de statut via WebSocket
+            from websocket_service.client import notify_event
+            notify_event('task_status_change', {
+                'workflow_id': str(workflow.id),
+                'task_id': str(task.id),
+                'status': 'STOPPED',
+                'volunteer': volunteer.name,
+                'message': f"Tâche {task.name} arrêtée par {volunteer.name}"
+            })
+            
+            # La tâche est arrêtée
+            task.status = 'cancelled'
+            task.end_date = timezone.now()
             # La tâche est arrêtée
             task.status = 'cancelled'
             task.end_date = timezone.now()
@@ -379,6 +445,17 @@ def handle_task_status(channel: str, message: Message):
             logger.info(f"Tâche {task.name} arrêtée par le volontaire {volunteer.name}")
         
         elif status.lower() == 'error' or status.lower() == 'failed':
+
+            # Notifier le changement de statut via WebSocket
+            from websocket_service.client import notify_event
+            notify_event('task_status_change', {
+                'workflow_id': str(workflow.id),
+                'task_id': str(task.id),
+                'status': 'FAILED',
+                'volunteer': volunteer.name,
+                'message': f"Tâche {task.name} a échoué sur {volunteer.name}"
+            })
+            
             # La tâche a échoué
             task.status = 'failed'
             task.end_date = timezone.now()
@@ -534,10 +611,16 @@ def handle_task_complete(channel: str, message: Message):
             task.save()
             logger.info(f"Statut de la tâche {task.name} mis à jour: COMPLETED")
 
-            # Mettre à jour le statut du workflow
-            workflow.status = WorkflowStatus.COMPLETED
-            workflow.save()
-            logger.info(f"Statut du workflow {workflow.name} mis à jour: COMPLETED")
+            # Notifier le changement de statut via WebSocket
+            from websocket_service.client import notify_event
+            notify_event('task_status_change', {
+                'workflow_id': str(workflow.id),
+                'task_id': str(task.id),
+                'status': 'COMPLETED',
+                'volunteer': volunteer.name,
+                'message': f"Tâche {task.name} complétée par {volunteer.name}"
+            })
+
 
 
             # Verifier si c'etait la derniere tache du workflow qui etait en running et qu'il n'y a pas de tache echouée
@@ -580,31 +663,8 @@ def handle_task_complete(channel: str, message: Message):
         task.status = "COMPLETED"
         task.save()
         logger.info(f"Statut de la tâche {task.name} mis à jour: COMPLETED")
-        
-        # Libérer les ressources du volontaire
-        volunteer.status = "available"
-        volunteer.save()
-        logger.info(f"Volontaire {volunteer.name} marqué comme disponible")
-        
-        # Vérifier si toutes les tâches du workflow sont complétées
-        pending_tasks = workflow.tasks.exclude(status="COMPLETED").count()
-        if pending_tasks == 0:
-            # Toutes les tâches sont complétées, mettre à jour le statut du workflow
-            workflow.status = "COMPLETED"
-            workflow.save()
-            logger.info(f"Toutes les tâches du workflow {workflow.id} sont complétées, statut mis à jour: COMPLETED")
-            
-            # Notifier la complétion du workflow via WebSocket
-            from websocket_service.client import notify_event
-            notify_event('workflow_status_change', {
-                'workflow_id': str(workflow.id),
-                'status': 'COMPLETED',
-                'message': f"Workflow {workflow.name} complété"
-            })
-        else:
-            logger.info(f"Il reste {pending_tasks} tâches en attente pour le workflow {workflow.id}")
-        
-        # Notifier le changement de statut de la tâche via WebSocket
+
+        # Notifier le changement de statut via WebSocket
         from websocket_service.client import notify_event
         notify_event('task_status_change', {
             'workflow_id': str(workflow.id),
@@ -613,6 +673,11 @@ def handle_task_complete(channel: str, message: Message):
             'volunteer': volunteer.name,
             'message': f"Tâche {task.name} complétée par {volunteer.name}"
         })
+        
+        # Libérer les ressources du volontaire
+        volunteer.status = "available"
+        volunteer.save()
+        logger.info(f"Volontaire {volunteer.name} marqué comme disponible") 
         
         return True
         

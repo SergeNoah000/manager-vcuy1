@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { getWebSocketManager } from '../lib/websocket';
 
@@ -61,6 +60,9 @@ export const useWebSocket = (options: UseWebSocketOptions = {}) => {
       },
       onTaskProgress: (data) => {
         console.log('Progression tâche reçue:', data);
+        if (data.status === 'complete') {
+          data.progress = 100;
+        }
         setLastMessage({ type: 'task_progress', data, timestamp: Date.now() });
         options.onTaskProgress?.(data);
       },

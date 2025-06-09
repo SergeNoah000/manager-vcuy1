@@ -12,7 +12,7 @@ from volunteers.models import Volunteer, VolunteerTask
 
 logger = logging.getLogger(__name__)
 
-def handle_task_assignment_response(channel: str, message: Message):
+def handle_task_reassignment_response(channel: str, message: Message):
     """
     Gestionnaire pour les réponses aux demandes de réassignation de tâches.
     
@@ -79,6 +79,16 @@ def handle_task_assignment_response(channel: str, message: Message):
                     'status': "ASSIGNED"
                 }
             )
+
+            # --- Notification WebSocket de l'assignation ---
+            from websocket_service.client import notify_event
+            notify_event('task_assignment', {
+                'task_id': str(task.id),
+                'volunteer_id': str(volunteer.id),
+                'status': task.status,
+                'message': f"Tâche {task.name} assignée à {volunteer.name}"
+            })
+
             assignments_by_volunteer = {}
             # Préparer les informations de fichiers d'entrée
             input_files = []
@@ -189,6 +199,6 @@ def register_handlers():
     client = RedisClient.get_instance()
     
     # Enregistrer le gestionnaire pour les réponses aux demandes de réassignation
-    client.subscribe('task/assignment/response', handle_task_assignment_response)
+    client.subscribe('task/assignment/response', handle_task_reassignment_response)
     
     logger.info("Gestionnaires de réponses aux demandes de réassignation de tâches enregistrés")

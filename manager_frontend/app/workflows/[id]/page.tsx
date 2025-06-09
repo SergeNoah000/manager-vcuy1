@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useState, JSX } from 'react';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { useManagerWebSocket } from '@/hooks/useManagerWebSocket';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { workflowService, taskService } from '@/lib/api';
@@ -34,6 +37,99 @@ interface Task {
 }
 
 export default function WorkflowDetailPage() {
+  // Ajout d'une fonction de validation des messages WebSocket
+  function validateWebSocketMessage(event: any, requiredFields: string[]) {
+    for (const field of requiredFields) {
+      if (!(field in event)) {
+        console.error(`Champ manquant dans le message WebSocket : ${field}`);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // Affichage des événements temps réel via WebSocket
+  useManagerWebSocket((event) => {
+    // Validation des messages WebSocket
+    const requiredFields = ['type', 'workflow_id'];
+    if (!validateWebSocketMessage(event, requiredFields)) {
+      toast.error('Message WebSocket invalide reçu', { position: 'top-right' });
+      return;
+    }
+
+    // Toast (déjà présent)
+    let msg = '';
+    if (event.type) {
+      msg = `[${event.type}] ` + (event.message || JSON.stringify(event));
+    } else {
+      msg = JSON.stringify(event);
+    }
+    // Toast uniquement pour les événements majeurs
+    if (event.type === 'workflow_status_change' ) {
+      // Afficher un toast pour tous les changements de statut
+      toast.info(event.message || `[workflow_status_change] ${event.status}`, { position: 'top-right' });
+      // Mettre à jour le statut du workflow (affichage DOM)
+      if (event.workflow_id === id && workflow) {
+        setWorkflow({ ...workflow, status: event.status });
+      }
+    } else if (event.type === 'task_status_change' || event.type === 'task_status_update' || event.type === 'task_update') {
+      if (event.status === 'COMPLETED') {
+        toast.success(event.message || 'Tâche complétée', { position: 'top-right' });
+      } else if (event.status === 'FAILED') {
+        toast.error(event.message || 'Tâche échouée', { position: 'top-right' });
+      } else if (event.status === 'STARTED' || event.status === 'RUNNING') {
+        toast.info(event.message || 'Tâche démarrée', { position: 'top-right' });
+      }
+      if(event.status === 'TERMINATED') {
+        toast.error(event.message || 'Tâche terminée', { position: 'top-right' });
+      }
+      if(event.status === 'SPLIT_COMPLETED') {
+        toast.info(event.message || 'Decoupage terminé', { position: 'top-right' });
+        // Rafraîchir la liste des tâches
+        taskService.getWorkflowTasks(id as string)
+          .then(setTasks)
+          .catch(() => toast.error('Impossible de charger les tâches du workflow après découpage'));
+      }
+    }else if (event.type === 'workflow_update') {
+      setWorkflow(event.workflow);
+    }else {
+      console.log("Event type non reconnu", event);
+      toast.warning(msg, { position: 'top-right', autoClose: 10000 });
+    }
+      
+
+    // Rafraîchir la liste des tâches après SPLIT_COMPLETED
+    if (event.type === 'workflow_status_change' && event.status === 'SPLIT_COMPLETED' && event.workflow_id === id) {
+      // Recharge aussi le workflow pour avoir le bon statut
+      workflowService.getWorkflow(id as string)
+        .then(setWorkflow)
+        .catch(() => toast.error('Impossible de charger le workflow après découpage', { position: 'top-right' }));
+
+      taskService.getWorkflowTasks(id as string)
+        .then(setTasks)
+        .catch(() => toast.error('Impossible de charger les tâches du workflow après découpage', { position: 'top-right' }));
+    }
+
+    // Progression d'une tâche
+    if (event.type === 'task_progress' && event.workflow_id === id && event.task_id) {
+      setTasks((prev) => prev.map(task => task.id === event.task_id ? { ...task, progress: event.progress ?? 0 } : task));
+    }
+
+    // Changement de statut d'une tâche
+    if (event.type === 'task_status_change' && event.workflow_id === id && event.task_id) {
+      setTasks((prev) => prev.map(task => task.id === event.task_id ? { ...task, status: event.status ?? task.status, progress: event.status === 'COMPLETED' ? 100 : task.progress } : task));
+    }
+
+    // Mise à jour silencieuse des tâches sur task_update
+    if (event.type === 'task_update' && event.task && event.task.workflow_id === id) {
+      setTasks((prev) => prev.map(task => task.id === event.task.id ? { ...task, ...event.task, progress: event.status === 'COMPLETED' ? 100 : task.progress } : task));
+    }
+
+    // Mise à jour silencieuse du workflow sur workflow_update
+    if (event.type === 'workflow_update' && event.workflow && event.workflow.id === id) {
+      setWorkflow(event.workflow);
+    }
+  });
   const { id } = useParams();
   const router = useRouter();
 
@@ -425,6 +521,7 @@ export default function WorkflowDetailPage() {
 
       {/* Carte d'aperçu */}
       <div className="mb-6 bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
+        <ToastContainer />
         <div className="p-6">
           <div className="flex items-center mb-4">
             <div className="p-3 rounded-full bg-blue-100 mr-4">

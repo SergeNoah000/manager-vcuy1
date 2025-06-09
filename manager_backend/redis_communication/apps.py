@@ -28,7 +28,7 @@ class RedisCommunicationConfig(AppConfig):
         Initialise et démarre le client Redis.
         """
         # Ne pas exécuter en mode commande (sauf pour runserver)
-        if 'runserver' not in sys.argv:
+        if 'runserver' not in sys.argv and 'daphne' not in sys.argv[0]:
             return
             
         logger.info("Initialisation du service de communication Redis...")

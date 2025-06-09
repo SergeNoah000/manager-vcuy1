@@ -98,10 +98,19 @@ class TaskViewSet(viewsets.ModelViewSet):
                 {"error": "Workflow ID is required"}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        tasks = Task.objects.filter(workflow__id=workflow_id)
+
+        # Vérifier si le workflow existe
+        workflow = Workflow.objects.filter(id=workflow_id).first()
+        if not workflow:
+            return Response(
+                {"error": "Workflow not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Récupérer les tâches associées
+        tasks = Task.objects.filter(workflow=workflow)
         serializer = self.get_serializer(tasks, many=True)
-        
+
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'])

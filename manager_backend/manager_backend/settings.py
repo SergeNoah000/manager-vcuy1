@@ -32,6 +32,14 @@ ALLOWED_HOSTS = ['*']
 
 # Application definition
 
+# Channels - InMemory backend pour usage local/utilisateur unique
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}
+
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -51,7 +59,7 @@ INSTALLED_APPS = [
     'volunteers',
     'websocket_service',
     # 'communication', 
-    'redis_communication',
+    'redis_communication.apps.RedisCommunicationConfig',
 ]
 
 MIDDLEWARE = [
@@ -98,6 +106,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+         'OPTIONS': {
+            'timeout': 30,  # Augmente le délai d'attente pour les connexions à la base de données
+            'check_same_thread': False,  # Permet l'accès à la base de données depuis plusieurs threads   
+        }
     }
 }
 
