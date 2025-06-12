@@ -81,3 +81,18 @@ def get_manager_login_token():
             return data['token']
     except FileNotFoundError:
         raise NoLoginError("Le fichier .manager/manager_login_info.json n'a pas été trouvé")
+    
+
+
+def get_local_ip():
+    try:
+        # Connexion fictive pour obtenir l'IP utilisée sur le réseau local
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))  
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération de l'IP locale : {e}")
+        return None

@@ -115,9 +115,13 @@ def submit_workflow_view(request, workflow_id):
                 thread_logger.info(f"Tasks: {len(tasks)} créées")
                 
                 # Préparer l'URL du serveur de fichiers
-                import socket
-                hostname = socket.gethostname()
-                ip_address = socket.gethostbyname(hostname)
+                from redis_communication.utils import get_local_ip
+                ip_address = get_local_ip()
+                if not ip_address:
+                    thread_logger.error(f"Impossible de récupérer l'adresse IP locale du serveur")
+                    raise Exception("Erreur lors de la récupération de l'adresse IP du serveur")
+                thread_logger.info(f"Adresse IP du serveur: {ip_address}")
+                # Construire l'URL du serveur de fichiers
                 file_server_url = f"http://{ip_address}:{server_port}"
                 
                 # Notifier la fin du découpage
@@ -225,9 +229,12 @@ def submit_workflow_view(request, workflow_id):
                     from tasks.models import Task
                     
                     # Récupérer l'adresse IP du serveur
-                    import socket
-                    hostname = socket.gethostname()
-                    server_ip = socket.gethostbyname(hostname)
+                    from redis_communication.utils import get_local_ip
+                    server_ip = get_local_ip()
+                    if not server_ip:
+                        thread_logger.error(f"Impossible de récupérer l'adresse IP locale du serveur")
+                        raise Exception("Erreur lors de la récupération de l'adresse IP du serveur")
+                    thread_logger.info(f"Adresse IP du serveur: {server_ip}")
                     
                     # Enrichir les informations d'assignation pour chaque volontaire
                     enriched_assignments = {}
