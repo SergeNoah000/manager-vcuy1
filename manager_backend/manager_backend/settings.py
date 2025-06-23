@@ -214,6 +214,7 @@ else:
     REDIS_PORT = 6380
 
 # --- REDIS CONFIG ---
-
+REDIS_PROXY_HOST = 'localhost'  # Proxy Redis
+REDIS_PROXY_PORT = 6380  # Port du proxy Redis
 REDIS_DB = 0
 REDIS_CHANNELS = []

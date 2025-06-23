@@ -205,3 +205,25 @@ class WorkflowConsumer(AsyncWebsocketConsumer):
             'message': event.get('message'),
             'timestamp': event.get('timestamp')
         }))
+
+    async def task_status(self, event):
+        """Diffuser une mise à jour de statut de tâche."""
+        await self.send(text_data=json.dumps({
+            'type': 'task_status_change',
+            'workflow_id': event.get('workflow_id'),
+            'task_id': event.get('task_id'),
+            'status': event.get('status'),
+            'volunteer': event.get('volunteer'),
+            'message': event.get('message'),
+            'timestamp': event.get('timestamp')
+        }))
+    
+    async def volunteer_status(self, event):
+        """Diffuser une mise à jour de statut de volontaire."""
+        await self.send(text_data=json.dumps({
+            'type': 'volunteer_status',
+            'volunteer_id': event.get('volunteer_id'),
+            'status': event.get('status'),
+            'message': event.get('message'),
+            'timestamp': event.get('timestamp')
+        }))

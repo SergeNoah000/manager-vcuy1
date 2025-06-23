@@ -7,6 +7,6 @@ migrations/
 venv
 .manager
 .manager_app
-
+exp-env
 
 db.sqlite3

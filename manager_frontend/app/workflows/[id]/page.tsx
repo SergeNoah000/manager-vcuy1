@@ -72,7 +72,7 @@ export default function WorkflowDetailPage() {
       if (event.workflow_id === id && workflow) {
         setWorkflow({ ...workflow, status: event.status });
       }
-    } else if (event.type === 'task_status_change' || event.type === 'task_status_update' || event.type === 'task_update') {
+    } else if (event.type === 'task_status_change' || event.type === 'task_status_update' || event.type === 'task_update' || event.type === 'task_status') {
       if (event.status === 'COMPLETED') {
         toast.success(event.message || 'Tâche complétée', { position: 'top-right' });
       } else if (event.status === 'FAILED') {

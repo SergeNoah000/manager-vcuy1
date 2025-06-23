@@ -109,6 +109,7 @@ class WorkflowType(models.TextChoices):
     MATRIX_MULTIPLICATION = 'MATRIX_MULTIPLICATION', 'Multiplication de matrices de grande taille'
     ML_TRAINING = 'ML_TRAINING', 'Entraînement de modèle machine learning'
     ML_INFERENCE = 'ML_INFERENCE', 'Inférence de modèle machine learning'
+    OPEN_MALARIA = 'OPEN_MALARIA', 'Simulation de la propagation du paludisme'
     CUSTOM = 'CUSTOM', 'Workflow personnalisé'
 
 

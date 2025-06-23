@@ -52,9 +52,9 @@ class RedisClient:
         
         self.config = config or {}
         self.client_type = self.config.get('client_type', 'manager')
-        from redis_communication.utils import get_manager_login_token
+        from redis_communication.utils import get_manager_id
         try:
-            self.client_id = get_manager_login_token()
+            self.client_id = get_manager_id()
         except Exception as e:
             self.client_id = str(uuid.uuid4())
         

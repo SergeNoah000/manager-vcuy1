@@ -84,6 +84,21 @@ def get_manager_login_token():
     
 
 
+def get_manager_id():
+    """
+    Récupère l'ID du manager à partir du fichier .manager/manager_login_info.json.
+    
+    Returns:
+        str: ID du manager
+    """
+    try:
+        with open('.manager/manager_info.json', 'r') as f:
+            data = json.load(f)
+            return data['remote_id']
+    except FileNotFoundError:
+        raise NoLoginError("Le fichier .manager/manager_info.json n'a pas été trouvé")
+
+
 def get_local_ip():
     try:
         # Connexion fictive pour obtenir l'IP utilisée sur le réseau local
